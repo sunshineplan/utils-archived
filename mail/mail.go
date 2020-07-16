@@ -1,7 +1,9 @@
 package mail
 
 import (
-	"gopkg.in/gomail.v2"
+	"io"
+
+	"github.com/go-mail/mail"
 )
 
 // Setting contains mail setting
@@ -17,24 +19,27 @@ type Setting struct {
 type Attachment struct {
 	FilePath string
 	Filename string
+	Reader   io.Reader
 }
 
 // SendMail according mail setting, subject, body and attachment
-func SendMail(s *Setting, subject string, body string, attachment *Attachment) error {
-	m := gomail.NewMessage()
+func SendMail(s *Setting, subject string, body string, attachments ...*Attachment) error {
+	m := mail.NewMessage()
 	m.SetHeader("From", s.From)
 	m.SetHeader("To", s.To...)
 	m.SetHeader("Subject", subject)
 	m.SetBody("text/plain", body)
-	if attachment != nil {
-		if attachment.Filename != "" {
-			m.Attach(attachment.FilePath, gomail.Rename(attachment.Filename))
+	for _, attachment := range attachments {
+		if attachment.Reader != nil {
+			m.AttachReader(attachment.Filename, attachment.Reader)
+		} else if attachment.Filename != "" {
+			m.Attach(attachment.FilePath, mail.Rename(attachment.Filename))
 		} else {
 			m.Attach(attachment.FilePath)
 		}
 	}
 
-	d := gomail.NewDialer(s.SMTPServer, s.SMTPServerPort, s.From, s.Password)
+	d := mail.NewDialer(s.SMTPServer, s.SMTPServerPort, s.From, s.Password)
 
 	err := d.DialAndSend(m)
 	return err
