@@ -20,7 +20,9 @@ func CSV(fieldnames []string, rows []interface{}, writer io.Writer) error {
 		}
 		r := make([]string, len(fieldnames))
 		for index, fieldname := range fieldnames {
-			r[index] = fmt.Sprintf("%v", m[fieldname])
+			if m[fieldname] != nil {
+				r[index] = fmt.Sprintf("%v", m[fieldname])
+			}
 		}
 		if err := w.Write(r); err != nil {
 			return err
