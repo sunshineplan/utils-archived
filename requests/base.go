@@ -61,6 +61,7 @@ type Response struct {
 	Body       io.ReadCloser
 	StatusCode int
 	Header     http.Header
+	Request    *http.Request
 }
 
 func buildResponse(resp *http.Response, err error) *Response {
@@ -72,6 +73,7 @@ func buildResponse(resp *http.Response, err error) *Response {
 		Body:       resp.Body,
 		StatusCode: resp.StatusCode,
 		Header:     resp.Header,
+		Request:    resp.Request,
 	}
 }
 
