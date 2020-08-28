@@ -9,7 +9,7 @@ import (
 // Setting contains mail setting
 type Setting struct {
 	From           string
-	To             []string
+	To, Cc, Bcc    []string
 	Password       string
 	SMTPServer     string
 	SMTPServerPort int
@@ -22,11 +22,13 @@ type Attachment struct {
 	Reader   io.Reader
 }
 
-// SendMail according mail setting, subject, body and attachment
-func SendMail(s *Setting, subject string, body string, attachments ...*Attachment) error {
+// Send mail according setting, subject, body and attachment
+func (s *Setting) Send(subject string, body string, attachments ...*Attachment) error {
 	m := mail.NewMessage()
 	m.SetHeader("From", s.From)
 	m.SetHeader("To", s.To...)
+	m.SetHeader("Cc", s.Cc...)
+	m.SetHeader("Bcc", s.Bcc...)
 	m.SetHeader("Subject", subject)
 	m.SetBody("text/plain", body)
 	for _, attachment := range attachments {
