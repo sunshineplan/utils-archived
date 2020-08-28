@@ -3,7 +3,6 @@ package requests
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -32,7 +31,7 @@ func buildRequest(method, URL string, data interface{}) (*http.Request, error) {
 		}
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		return req, nil
-	case interface{}, map[string]interface{}:
+	default:
 		jsonData, err := json.Marshal(data)
 		if err != nil {
 			return nil, err
@@ -43,16 +42,21 @@ func buildRequest(method, URL string, data interface{}) (*http.Request, error) {
 		}
 		req.Header.Set("Content-Type", "application/json")
 		return req, nil
-	default:
-		return nil, fmt.Errorf("Unknown data format")
 	}
 }
 
-func addHeaders(headers map[string]string, req *http.Request) {
-	for k, v := range headers {
-		req.Header.Set(k, v)
+func doRequest(method, url string, headers map[string]string, data interface{}, client *http.Client) *Response {
+	req, err := buildRequest(method, url, data)
+	if err != nil {
+		return &Response{Error: err}
 	}
 	req.Header.Set("User-Agent", defaultAgent)
+	if headers != nil {
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
+	}
+	return buildResponse(client.Do(req))
 }
 
 // Response after request
