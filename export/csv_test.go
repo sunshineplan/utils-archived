@@ -8,12 +8,12 @@ import (
 )
 
 func TestCSV(t *testing.T) {
-	type test struct{ A, B string }
-	mapString := []interface{}{map[string]interface{}{"A": "a", "B": "b"}, map[string]interface{}{"A": "aa", "B": "bb"}}
-	Struct := []interface{}{test{A: "a", B: "b"}, test{A: "aa", B: "bb"}}
+	type test struct{ A, B interface{} }
+	mapString := []interface{}{map[string]interface{}{"A": "a", "B": "b"}, map[string]interface{}{"A": "aa", "B": nil}}
+	Struct := []interface{}{test{A: "a", B: "b"}, test{A: "aa", B: nil}}
 	result := `A,B
 a,b
-aa,bb
+aa,
 `
 
 	var b1, b2 bytes.Buffer

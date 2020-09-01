@@ -21,7 +21,7 @@ func exportCSV(fieldnames []string, rows []interface{}, w io.Writer, utf8bom boo
 		case reflect.Map:
 			if reflect.TypeOf(row).Key().Name() == "string" {
 				for index, fieldname := range fieldnames {
-					if v := obj.MapIndex(reflect.ValueOf(fieldname)); v.IsValid() {
+					if v := obj.MapIndex(reflect.ValueOf(fieldname)); v.IsValid() && v.Interface() != nil {
 						r[index] = fmt.Sprintf("%v", v)
 					}
 				}
@@ -30,7 +30,7 @@ func exportCSV(fieldnames []string, rows []interface{}, w io.Writer, utf8bom boo
 			}
 		case reflect.Struct:
 			for index, fieldname := range fieldnames {
-				if v := obj.FieldByName(fieldname); v.IsValid() {
+				if v := obj.FieldByName(fieldname); v.IsValid() && v.Interface() != nil {
 					r[index] = fmt.Sprintf("%v", v)
 				}
 			}
