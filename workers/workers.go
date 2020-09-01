@@ -1,5 +1,10 @@
 package workers
 
+import (
+	"fmt"
+	"reflect"
+)
+
 // Workers can run jobs concurrently with limit
 type Workers struct {
 	Max int
@@ -11,19 +16,24 @@ func New(max int) *Workers {
 }
 
 // Run workers
-func (w *Workers) Run(items []interface{}, runner func(chan bool, int, interface{})) {
+func (w *Workers) Run(itemSlice interface{}, runner func(chan bool, int, interface{})) error {
+	if reflect.TypeOf(itemSlice).Kind() != reflect.Slice {
+		return fmt.Errorf("Input item must be a slice")
+	}
+	items := reflect.ValueOf(itemSlice)
 	c := make(chan bool, w.Max)
-	for i, item := range items {
+	for i := 0; i < items.Len(); i++ {
 		c <- true
-		go runner(c, i, item)
+		go runner(c, i, items.Index(i).Interface())
 	}
 	for i := 0; i < w.Max; i++ {
 		c <- true
 	}
+	return nil
 }
 
 // RunRange run workers according range
-func (w *Workers) RunRange(start, end int, runner func(chan bool, int)) {
+func (w *Workers) RunRange(start, end int, runner func(chan bool, int)) error {
 	c := make(chan bool, w.Max)
 	for i := start; i <= end; i++ {
 		c <- true
@@ -32,4 +42,5 @@ func (w *Workers) RunRange(start, end int, runner func(chan bool, int)) {
 	for i := 0; i < w.Max; i++ {
 		c <- true
 	}
+	return nil
 }
