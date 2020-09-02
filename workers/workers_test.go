@@ -14,7 +14,7 @@ func TestRun(t *testing.T) {
 	}
 	items := []test{test{"a", 1}, test{"b", 2}, test{"c", 3}}
 	result := make([]string, len(items))
-	if err := New(2).Run(items, func(c chan bool, i int, item interface{}) {
+	if err := Run(items, func(c chan bool, i int, item interface{}) {
 		defer func() { <-c }()
 		result[i] = strings.Repeat(item.(test).char, item.(test).times)
 	}); err != nil {
@@ -30,7 +30,7 @@ func TestRunRange(t *testing.T) {
 	end := 3
 	items := []string{"a", "b", "c"}
 	result := make([]string, end)
-	if err := New(2).RunRange(1, end, func(c chan bool, num int) {
+	if err := RunRange(1, end, func(c chan bool, num int) {
 		defer func() { <-c }()
 		result[num-1] = strings.Repeat(items[num-1], num)
 	}); err != nil {
