@@ -14,13 +14,13 @@ type Workers struct {
 }
 
 // New create new workers with max limit
-func New(max int) *Workers {
-	return &Workers{Max: max}
+func New(max int) Workers {
+	return Workers{Max: max}
 }
 
 // SetMax default workers max limit
 func SetMax(max int) {
-	defaultWorkers = Workers{Max: max}
+	defaultWorkers.Max = max
 }
 
 // Run default workers on slice
@@ -34,7 +34,7 @@ func RunRange(start, end int, runner func(chan bool, int)) error {
 }
 
 // Run workers on slice
-func (w *Workers) Run(slice interface{}, runner func(chan bool, int, interface{})) error {
+func (w Workers) Run(slice interface{}, runner func(chan bool, int, interface{})) error {
 	if reflect.TypeOf(slice).Kind() != reflect.Slice {
 		return fmt.Errorf("Input item must be a slice")
 	}
@@ -51,7 +51,7 @@ func (w *Workers) Run(slice interface{}, runner func(chan bool, int, interface{}
 }
 
 // RunRange run workers on range
-func (w *Workers) RunRange(start, end int, runner func(chan bool, int)) error {
+func (w Workers) RunRange(start, end int, runner func(chan bool, int)) error {
 	c := make(chan bool, w.Max)
 	for i := start; i <= end; i++ {
 		c <- true

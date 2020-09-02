@@ -7,6 +7,13 @@ import (
 	"testing"
 )
 
+func TestSetMax(t *testing.T) {
+	SetMax(5)
+	if defaultWorkers.Max != 5 {
+		t.Error("SetMax result is not except one")
+	}
+}
+
 func TestRun(t *testing.T) {
 	type test struct {
 		char  string
