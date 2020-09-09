@@ -2,6 +2,7 @@ package mail
 
 import (
 	"io"
+	"time"
 
 	"github.com/go-mail/mail"
 )
@@ -42,7 +43,7 @@ func (s *Setting) Send(subject string, body string, attachments ...*Attachment) 
 	}
 
 	d := mail.NewDialer(s.SMTPServer, s.SMTPServerPort, s.From, s.Password)
+	d.Timeout = 3 * time.Minute
 
-	err := d.DialAndSend(m)
-	return err
+	return d.DialAndSend(m)
 }
