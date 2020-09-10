@@ -23,28 +23,60 @@ func SetMax(max int) {
 	defaultWorkers.Max = max
 }
 
-// RunOnSlice default workers on slice
-func RunOnSlice(Slice interface{}, Runner func(int, interface{})) error {
-	return defaultWorkers.RunOnSlice(Slice, Runner)
+// Slice run workers on slice without limit
+func Slice(Slice interface{}, Runner func(int, interface{})) error {
+	return runSlice(0, Slice, Runner)
 }
 
-// RunOnMap default workers on slice
-func RunOnMap(Map interface{}, Runner func(interface{}, interface{})) error {
-	return defaultWorkers.RunOnMap(Map, Runner)
+// Map run workers on slice without limit
+func Map(Map interface{}, Runner func(interface{}, interface{})) error {
+	return runMap(0, Map, Runner)
 }
 
-// RunOnRange run default workers on range
-func RunOnRange(Start, End int, Runner func(int)) error {
-	return defaultWorkers.RunOnRange(Start, End, Runner)
+// Range run workers on range without limit
+func Range(Start, End int, Runner func(int)) error {
+	return runRange(0, Start, End, Runner)
 }
 
-// RunOnSlice workers on slice
-func (w Workers) RunOnSlice(Slice interface{}, Runner func(int, interface{})) error {
+// DefaultSlice use default workers run on slice
+func DefaultSlice(Slice interface{}, Runner func(int, interface{})) error {
+	return defaultWorkers.Slice(Slice, Runner)
+}
+
+// DefaultMap use default workers run on slice
+func DefaultMap(Map interface{}, Runner func(interface{}, interface{})) error {
+	return defaultWorkers.Map(Map, Runner)
+}
+
+// DefaultRange use default workers run on range
+func DefaultRange(Start, End int, Runner func(int)) error {
+	return defaultWorkers.Range(Start, End, Runner)
+}
+
+// Slice run workers on slice
+func (w Workers) Slice(Slice interface{}, Runner func(int, interface{})) error {
+	return runSlice(w.Max, Slice, Runner)
+}
+
+// Map run workers on slice
+func (w Workers) Map(Map interface{}, Runner func(interface{}, interface{})) error {
+	return runMap(w.Max, Map, Runner)
+}
+
+// Range run workers on range
+func (w Workers) Range(Start, End int, Runner func(int)) error {
+	return runRange(w.Max, Start, End, Runner)
+}
+
+func runSlice(Limit int, Slice interface{}, Runner func(int, interface{})) error {
 	if reflect.TypeOf(Slice).Kind() != reflect.Slice {
 		return fmt.Errorf("First argument must be a slice")
 	}
 	values := reflect.ValueOf(Slice)
-	c := make(chan bool, w.Max)
+	if Limit <= 0 {
+		Limit = values.Len()
+	}
+	c := make(chan bool, Limit)
 	for i := 0; i < values.Len(); i++ {
 		c <- true
 		go func(index int, value interface{}) {
@@ -52,19 +84,22 @@ func (w Workers) RunOnSlice(Slice interface{}, Runner func(int, interface{})) er
 			Runner(index, value)
 		}(i, values.Index(i).Interface())
 	}
-	for i := 0; i < w.Max; i++ {
+	for i := 0; i < Limit; i++ {
 		c <- true
 	}
 	return nil
 }
 
-// RunOnMap workers on slice
-func (w Workers) RunOnMap(Map interface{}, Runner func(interface{}, interface{})) error {
+func runMap(Limit int, Map interface{}, Runner func(interface{}, interface{})) error {
 	if reflect.TypeOf(Map).Kind() != reflect.Map {
 		return fmt.Errorf("First argument must be a map")
 	}
-	iter := reflect.ValueOf(Map).MapRange()
-	c := make(chan bool, w.Max)
+	value := reflect.ValueOf(Map)
+	if Limit <= 0 {
+		Limit = len(value.MapKeys())
+	}
+	iter := value.MapRange()
+	c := make(chan bool, Limit)
 	for iter.Next() {
 		k := iter.Key()
 		v := iter.Value()
@@ -74,15 +109,17 @@ func (w Workers) RunOnMap(Map interface{}, Runner func(interface{}, interface{})
 			Runner(k, v)
 		}(k.Interface(), v.Interface())
 	}
-	for i := 0; i < w.Max; i++ {
+	for i := 0; i < Limit; i++ {
 		c <- true
 	}
 	return nil
 }
 
-// RunOnRange run workers on range
-func (w Workers) RunOnRange(Start, End int, Runner func(int)) error {
-	c := make(chan bool, w.Max)
+func runRange(Limit, Start, End int, Runner func(int)) error {
+	if Limit <= 0 {
+		Limit = End - Start + 1
+	}
+	c := make(chan bool, Limit)
 	for i := Start; i <= End; i++ {
 		c <- true
 		go func(num int) {
@@ -90,7 +127,7 @@ func (w Workers) RunOnRange(Start, End int, Runner func(int)) error {
 			Runner(num)
 		}(i)
 	}
-	for i := 0; i < w.Max; i++ {
+	for i := 0; i < Limit; i++ {
 		c <- true
 	}
 	return nil

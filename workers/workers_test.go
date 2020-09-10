@@ -2,32 +2,24 @@ package workers
 
 import (
 	"fmt"
+	"math/rand"
 	"reflect"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
-func TestSetMax(t *testing.T) {
-	SetMax(5)
-	if defaultWorkers.Max != 5 {
-		t.Error("SetMax result is not except one")
-	}
-	SetMax(100)
-	if defaultWorkers.Max != 100 {
-		t.Error("SetMax result is not except one")
-	}
-}
-
-func TestRunOnSlice(t *testing.T) {
+func TestSlice(t *testing.T) {
 	type test struct {
 		char  string
 		times int
 	}
-	Slice := []test{test{"a", 1}, test{"b", 2}, test{"c", 3}}
-	result := make([]string, len(Slice))
-	if err := RunOnSlice(Slice, func(i int, item interface{}) {
+	slice := []test{test{"a", 1}, test{"b", 2}, test{"c", 3}}
+	result := make([]string, len(slice))
+	if err := Slice(slice, func(i int, item interface{}) {
 		result[i] = strings.Repeat(item.(test).char, item.(test).times)
 	}); err != nil {
 		fmt.Println(err)
@@ -38,11 +30,10 @@ func TestRunOnSlice(t *testing.T) {
 	}
 }
 
-func TestRunOnMap(t *testing.T) {
-	Map := map[string]int{"a": 1, "b": 2, "c": 3}
+func TestMap(t *testing.T) {
 	m := &sync.Mutex{}
 	var result []string
-	if err := RunOnMap(Map, func(k, v interface{}) {
+	if err := Map(map[string]int{"a": 1, "b": 2, "c": 3}, func(k, v interface{}) {
 		m.Lock()
 		result = append(result, strings.Repeat(k.(string), v.(int)))
 		m.Unlock()
@@ -57,11 +48,11 @@ func TestRunOnMap(t *testing.T) {
 	}
 }
 
-func TestRunOnRange(t *testing.T) {
+func TestRange(t *testing.T) {
 	end := 3
 	items := []string{"a", "b", "c"}
 	result := make([]string, end)
-	if err := RunOnRange(1, end, func(num int) {
+	if err := Range(1, end, func(num int) {
 		result[num-1] = strings.Repeat(items[num-1], num)
 	}); err != nil {
 		fmt.Println(err)
@@ -69,5 +60,51 @@ func TestRunOnRange(t *testing.T) {
 	}
 	if !reflect.DeepEqual(result, []string{"a", "bb", "ccc"}) {
 		t.Error("RunOnRange workers result is not except one")
+	}
+}
+
+func TestLimit(t *testing.T) {
+	rand.Seed(time.Now().UnixNano())
+	limit := rand.Intn(1000) + 51
+	var count1, count2, count3 int
+	go Range(1, limit, func(_ int) {
+		count1++
+		for {
+			select {}
+		}
+	})
+	go DefaultRange(1, limit, func(_ int) {
+		count2++
+		for {
+			select {}
+		}
+	})
+	workers := rand.Intn(50) + 1
+	go New(workers).Range(1, limit, func(_ int) {
+		count3++
+		for {
+			select {}
+		}
+	})
+	time.Sleep(time.Second)
+	if count1 != limit {
+		t.Errorf("Unlimited workers goroutine number is not %d: %d", limit, count1)
+	}
+	if count2 != runtime.NumCPU()*2 {
+		t.Errorf("Default workers goroutine number is not %d: %d", runtime.NumCPU()*2, count2)
+	}
+	if count3 != workers {
+		t.Errorf("Workers goroutine number is not %d: %d", workers, count3)
+	}
+}
+
+func TestSetMax(t *testing.T) {
+	SetMax(5)
+	if defaultWorkers.Max != 5 {
+		t.Error("SetMax result is not except one")
+	}
+	SetMax(100)
+	if defaultWorkers.Max != 100 {
+		t.Error("SetMax result is not except one")
 	}
 }
