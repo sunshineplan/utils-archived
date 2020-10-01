@@ -10,8 +10,8 @@ import (
 	"time"
 )
 
-const defaultTemplate = ` [{{.Done}}{{.Undone}}]   {{printf "%.2f" .Speed}}/s - {{.Current -}}
-({{printf "%.2f" .Percent}}%) of {{.Total}}   Left: {{.Left}}   `
+const defaultTemplate = ` [{{.Done}}{{.Undone}}]   {{printf "%.2f/s" .Speed}} - {{.Current -}}
+{{printf "(%.2f%%)" .Percent}} of {{.Total}}   {{printf "Left: %s" .Left}}   `
 
 // ProgressBar is a simple progress bar
 type ProgressBar struct {
