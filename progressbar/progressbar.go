@@ -2,6 +2,7 @@ package progressbar
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -10,14 +11,15 @@ import (
 	"time"
 )
 
-const defaultTemplate = ` [{{.Done}}{{.Undone}}]   {{printf "%.2f/s" .Speed}} - {{.Current -}}
-{{printf "(%.2f%%)" .Percent}} of {{.Total}}   {{printf "Left: %s" .Left}}   `
+const defaultTemplate = `[{{.Done}}{{.Undone}}]   {{printf "%.2f/s" .Speed}} - {{.Current -}}
+{{printf "(%.2f%%)" .Percent}} of {{.Total}}   {{printf "Left: %s" .Left}} `
 
 // ProgressBar is a simple progress bar
 type ProgressBar struct {
 	width    int
 	refresh  time.Duration
 	template *template.Template
+	last     int
 }
 
 type format struct {
@@ -27,16 +29,11 @@ type format struct {
 	Left           time.Duration
 }
 
-func (f *format) execute(template *template.Template) {
+func (f *format) execute(pb *ProgressBar) {
+	io.WriteString(os.Stderr, fmt.Sprintf("\r%s\r", strings.Repeat(" ", pb.last)))
 	var buf bytes.Buffer
-	if err := template.Execute(&buf, f); err == nil {
-		if f.Current < f.Total {
-			io.WriteString(&buf, "\r\r")
-		} else {
-			io.WriteString(&buf, "\r\n")
-		}
-	}
-	io.Copy(os.Stdout, &buf)
+	pb.template.Execute(io.MultiWriter(os.Stderr, &buf), f)
+	pb.last = buf.Len()
 }
 
 // New returns a new ProgressBar with default options
@@ -86,6 +83,7 @@ func (pb *ProgressBar) Start(total int, current *int) {
 	}()
 	go func() {
 		for {
+			start := time.Now()
 			now := *current
 			done := pb.width * now / total
 			percent := float64(now) * 100 / float64(total)
@@ -105,11 +103,12 @@ func (pb *ProgressBar) Start(total int, current *int) {
 				Total:   total,
 				Left:    left,
 			}
-			go f.execute(pb.template)
+			f.execute(pb)
 			if now >= total {
+				io.WriteString(os.Stderr, "\n")
 				return
 			}
-			time.Sleep(time.Second)
+			time.Sleep(time.Second - time.Since(start))
 		}
 	}()
 }

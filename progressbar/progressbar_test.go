@@ -9,9 +9,9 @@ func TestProgessBar(t *testing.T) {
 	var i int
 	pb := New()
 	go pb.Start(20, &i)
-	for i = 0; i < 20; i++ {
-		//log.Print(i + 1)
+	for ; i <= 20; i++ {
+		//log.Print(i)
 		time.Sleep(time.Second)
 	}
-	time.Sleep(time.Second * 3)
+	time.Sleep(time.Second)
 }
