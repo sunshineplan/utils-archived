@@ -31,10 +31,15 @@ type format struct {
 }
 
 func (f *format) execute(pb *ProgressBar) {
-	io.WriteString(os.Stderr, fmt.Sprintf("\r%s\r", strings.Repeat(" ", pb.last)))
 	var buf bytes.Buffer
-	pb.template.Execute(io.MultiWriter(os.Stderr, &buf), f)
-	pb.last = buf.Len()
+	pb.template.Execute(&buf, f)
+	last := buf.Len()
+	if last < pb.last {
+		io.WriteString(os.Stderr,
+			fmt.Sprintf("\r%s\r%s", strings.Repeat(" ", pb.last), buf.Bytes()))
+	} else {
+		io.WriteString(os.Stderr, "\r\r"+string(buf.Bytes()))
+	}
 }
 
 // New returns a new ProgressBar with default options
