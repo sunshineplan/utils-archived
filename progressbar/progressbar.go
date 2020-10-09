@@ -19,6 +19,7 @@ type ProgressBar struct {
 	width    int
 	refresh  time.Duration
 	template *template.Template
+	done     chan bool
 	last     int
 }
 
@@ -37,11 +38,12 @@ func (f *format) execute(pb *ProgressBar) {
 }
 
 // New returns a new ProgressBar with default options
-func New() *ProgressBar {
+func New(c chan bool) *ProgressBar {
 	return &ProgressBar{
 		width:    50,
 		refresh:  5 * time.Second,
 		template: template.Must(template.New("ProgressBar").Parse(defaultTemplate)),
+		done:     c,
 	}
 }
 
@@ -106,6 +108,7 @@ func (pb *ProgressBar) Start(total int, current *int) {
 			f.execute(pb)
 			if now >= total {
 				io.WriteString(os.Stderr, "\n")
+				pb.done <- true
 				return
 			}
 			time.Sleep(time.Second - time.Since(start))
