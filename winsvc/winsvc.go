@@ -211,3 +211,10 @@ func StopService() error {
 	}
 	return nil
 }
+
+// IsWindowsService reports whether the process is currently executing
+// as a Windows service.
+func IsWindowsService() (b bool) {
+	b, _ = svc.IsWindowsService()
+	return
+}
