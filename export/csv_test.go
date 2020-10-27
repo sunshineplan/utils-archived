@@ -3,7 +3,6 @@ package export
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"reflect"
 	"testing"
 )
@@ -18,7 +17,7 @@ a,b
 aa,
 `
 
-	var b1, b2, b3 bytes.Buffer
+	var b1, b2, b3, b4 bytes.Buffer
 	if err := CSV([]string{"A", "B"}, mapSlice, &b1); err != nil {
 		fmt.Println(err)
 		t.Error("Export map slice source csv failed")
@@ -27,20 +26,24 @@ aa,
 		fmt.Println(err)
 		t.Error("Export struct slice source csv failed")
 	}
-	if err := CSV([]string{"A", "B"}, interfaceSlice, &b3); err != nil {
+	if err := CSV(nil, structSlice, &b3); err != nil {
+		fmt.Println(err)
+		t.Error("Export struct slice source csv failed")
+	}
+	if err := CSV([]string{"A", "B"}, interfaceSlice, &b4); err != nil {
 		fmt.Println(err)
 		t.Error("Export interface slice source csv failed")
 	}
-	c1, _ := ioutil.ReadAll(&b1)
-	c2, _ := ioutil.ReadAll(&b2)
-	c3, _ := ioutil.ReadAll(&b3)
-	if string(c1) != result {
+	if b1.String() != result {
 		t.Error("Export map slice source csv result is not except one")
 	}
-	if string(c2) != result {
+	if b2.String() != result {
 		t.Error("Export struct slice source csv result is not except one")
 	}
-	if string(c3) != result {
+	if b3.String() != result {
+		t.Error("Export struct slice source with nil fieldnames csv result is not except one")
+	}
+	if b4.String() != result {
 		t.Error("Export interface slice source csv result is not except one")
 	}
 }
@@ -55,11 +58,24 @@ a,b
 		fmt.Println(err)
 		t.Error("Export csv with utf8bom failed")
 	}
-	c, _ := ioutil.ReadAll(&b)
+	c := b.Bytes()
 	if !reflect.DeepEqual(bom, c[:3]) {
 		t.Error("Export csv with utf8bom result not contain bom header")
 	}
 	if string(c[3:]) != result {
 		t.Error("Export csv with utf8bom result is not except one")
+	}
+}
+
+func TestGetStructFieldNames(t *testing.T) {
+	if _, err := getStructFieldNames(map[string]string{"test": "test"}); err == nil {
+		t.Error("Except error when get fieldnames from map")
+	}
+	if fieldnames, err := getStructFieldNames(struct{ A, B string }{}); err != nil {
+		t.Error("Failed to get fieldnames")
+	} else {
+		if !reflect.DeepEqual(fieldnames, []string{"A", "B"}) {
+			t.Error("Fieldnames result is not except one")
+		}
 	}
 }
