@@ -1,4 +1,4 @@
-package utils
+package ocr
 
 import (
 	"bytes"
@@ -21,23 +21,22 @@ type ocrText struct {
 	}
 }
 
-// OCRFromReader convert image to text
-func OCRFromReader(data io.Reader) (string, error) {
-	params := map[string]string{
-		"isOverlayRequired":            "true",
-		"isSearchablePdfHideTextLayer": "true",
-		"scale":                        "true",
-	}
-
+// Read reads image from r and converts it into text
+func Read(r io.Reader) (string, error) {
 	var body bytes.Buffer
 	w := multipart.NewWriter(&body)
 	defer w.Close()
 
 	part, _ := w.CreateFormFile("file", "pic.jpg")
-	if _, err := io.Copy(part, data); err != nil {
+	if _, err := io.Copy(part, r); err != nil {
 		return "", err
 	}
 
+	params := map[string]string{
+		"isOverlayRequired":            "true",
+		"isSearchablePdfHideTextLayer": "true",
+		"scale":                        "true",
+	}
 	for k, v := range params {
 		w.WriteField(k, v)
 	}
