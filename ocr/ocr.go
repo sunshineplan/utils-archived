@@ -33,9 +33,7 @@ func Read(r io.Reader) (string, error) {
 	}
 
 	params := map[string]string{
-		"isOverlayRequired":            "true",
-		"isSearchablePdfHideTextLayer": "true",
-		"scale":                        "true",
+		"scale": "true",
 	}
 	for k, v := range params {
 		w.WriteField(k, v)
