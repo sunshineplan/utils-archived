@@ -13,6 +13,11 @@ import (
 var defaultAgent = "Chrome"
 var defaultClient = &http.Client{Transport: &http.Transport{Proxy: nil}}
 
+// H represents the key-value pairs in an HTTP header
+// map[string]string
+type H headers
+type headers map[string]string
+
 // SetAgent set default user agent string
 func SetAgent(agent string) {
 	if agent != "" {
@@ -45,16 +50,14 @@ func buildRequest(method, URL string, data interface{}) (*http.Request, error) {
 	}
 }
 
-func doRequest(method, url string, headers map[string]string, data interface{}, client *http.Client) *Response {
+func doRequest(method, url string, header http.Header, data interface{}, client *http.Client) *Response {
 	req, err := buildRequest(method, url, data)
 	if err != nil {
 		return &Response{Error: err}
 	}
 	req.Header.Set("User-Agent", defaultAgent)
-	if headers != nil {
-		for k, v := range headers {
-			req.Header.Set(k, v)
-		}
+	for k, v := range header {
+		req.Header[k] = v
 	}
 	return buildResponse(client.Do(req))
 }
@@ -65,6 +68,7 @@ type Response struct {
 	Body       io.ReadCloser
 	StatusCode int
 	Header     http.Header
+	Cookies    []*http.Cookie
 	Request    *http.Request
 }
 
@@ -77,6 +81,7 @@ func buildResponse(resp *http.Response, err error) *Response {
 		Body:       resp.Body,
 		StatusCode: resp.StatusCode,
 		Header:     resp.Header,
+		Cookies:    resp.Cookies(),
 		Request:    resp.Request,
 	}
 }
@@ -104,7 +109,7 @@ func (r *Response) JSON(data interface{}) error {
 	return nil
 }
 
-// Bytes return response []byte
+// Bytes return response bytes
 func (r *Response) Bytes() []byte {
 	if r.Error != nil {
 		return nil
