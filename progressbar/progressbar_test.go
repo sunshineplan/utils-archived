@@ -15,6 +15,14 @@ func TestProgessBar(t *testing.T) {
 		time.Sleep(time.Second)
 	}
 	<-done
+	pb = New(10, done).SetRefresh(500 * time.Millisecond)
+	pb.Start()
+	for i := 0; i < pb.total; i++ {
+		//log.Print(i)
+		pb.Add(1)
+		time.Sleep(time.Second)
+	}
+	<-done
 }
 
 func TestSetTemplate(t *testing.T) {

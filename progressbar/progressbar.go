@@ -44,6 +44,7 @@ func (f *format) execute(pb *ProgressBar) {
 	} else {
 		io.WriteString(os.Stderr, "\r\r"+string(buf.Bytes()))
 	}
+	pb.lastWidth = width
 }
 
 // New returns a new ProgressBar with default options
@@ -92,7 +93,9 @@ func (pb *ProgressBar) Add(num int) {
 // Start ProgressBar
 func (pb *ProgressBar) Start() {
 	go func() {
-		var speed float64
+		start := time.Now()
+		maxRefresh := pb.refresh * 3
+		var speed, totalSpeed, intervalSpeed float64
 		go func() {
 			for {
 				now := pb.current
@@ -100,7 +103,11 @@ func (pb *ProgressBar) Start() {
 					return
 				}
 				time.Sleep(pb.refresh)
-				speed = float64(pb.current-now) / float64(pb.refresh/time.Second)
+				totalSpeed = float64(now) / (float64(time.Since(start)) / float64(time.Second))
+				intervalSpeed = float64(pb.current-now) / (float64(pb.refresh) / float64(time.Second))
+				if intervalSpeed == 0 && pb.refresh < maxRefresh {
+					pb.refresh += time.Second
+				}
 			}
 		}()
 		go func() {
@@ -112,6 +119,11 @@ func (pb *ProgressBar) Start() {
 				}
 				done := pb.blockWidth * now / pb.total
 				percent := float64(now) * 100 / float64(pb.total)
+				if intervalSpeed == 0 {
+					speed = totalSpeed
+				} else {
+					speed = intervalSpeed
+				}
 				left := time.Duration(float64(pb.total-now)/speed) * time.Second
 				if left < 0 {
 					left = 0
