@@ -39,6 +39,10 @@ func (o *Options) Run(handler http.Handler) error {
 		if err != nil {
 			return fmt.Errorf("Failed to listen socket file: %v", err)
 		}
+		// Let everyone can access the socket file
+		if err := os.Chmod(o.UNIX, 0666); err != nil {
+			return fmt.Errorf("Failed to chmod socket file: %v", err)
+		}
 		if err := server.Serve(listener); err != http.ErrServerClosed {
 			return fmt.Errorf("Failed to server: %v", err)
 		}
