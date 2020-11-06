@@ -21,7 +21,7 @@ type Options struct {
 // For example, gin.Engine.
 type Engine interface {
 	ServeHTTP(http.ResponseWriter, *http.Request)
-	Run(string) error
+	Run(...string) error
 }
 
 // Run runs engine.
