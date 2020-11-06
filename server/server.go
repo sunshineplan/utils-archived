@@ -7,20 +7,20 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"runtime"
 	"syscall"
 )
 
-// Options is a struct it contains unix or host and port settings.
-type Options struct {
-	UNIX string
-	Host string
-	Port string
+// Server defines parameters for running an HTTP server.
+type Server struct {
+	Unix    string
+	Host    string
+	Port    string
+	Handler http.Handler
 }
 
-// Run runs http handler.
-func (o *Options) Run(handler http.Handler) error {
-	server := &http.Server{Handler: handler}
+// Run runs an HTTP server which can be gracefully shut down.
+func (s *Server) Run() error {
+	server := &http.Server{Handler: s.Handler}
 
 	idleConnsClosed := make(chan struct{})
 	go func() {
@@ -34,24 +34,43 @@ func (o *Options) Run(handler http.Handler) error {
 		close(idleConnsClosed)
 	}()
 
-	if o.UNIX != "" && runtime.GOOS == "linux" {
-		listener, err := net.Listen("unix", o.UNIX)
+	if s.Unix != "" {
+		listener, err := net.Listen("unix", s.Unix)
 		if err != nil {
 			return fmt.Errorf("Failed to listen socket file: %v", err)
 		}
-		// Let everyone can access the socket file
-		if err := os.Chmod(o.UNIX, 0666); err != nil {
+		// Let everyone can access the socket file.
+		if err := os.Chmod(s.Unix, 0666); err != nil {
 			return fmt.Errorf("Failed to chmod socket file: %v", err)
 		}
 		if err := server.Serve(listener); err != http.ErrServerClosed {
 			return fmt.Errorf("Failed to server: %v", err)
 		}
 	} else {
-		server.Addr = o.Host + ":" + o.Port
+		if s.Host != "" && s.Port != "" {
+			server.Addr = s.Host + ":" + s.Port
+		}
 		if err := server.ListenAndServe(); err != http.ErrServerClosed {
 			return fmt.Errorf("Failed to server: %v", err)
 		}
 	}
 	<-idleConnsClosed
 	return nil
+}
+
+// TCP runs an HTTP server on TCP network listener.
+func TCP(hostport string, handler http.Handler) error {
+	if hostport == "" {
+		hostport = ":http"
+	}
+	host, port, err := net.SplitHostPort(hostport)
+	if err != nil {
+		return err
+	}
+	return (&Server{Host: host, Port: port, Handler: handler}).Run()
+}
+
+// Unix runs an HTTP server on Unix domain socket listener.
+func Unix(unix string, handler http.Handler) error {
+	return (&Server{Unix: unix, Handler: handler}).Run()
 }
