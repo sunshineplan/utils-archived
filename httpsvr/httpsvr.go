@@ -1,4 +1,4 @@
-package server
+package httpsvr
 
 import (
 	"context"
