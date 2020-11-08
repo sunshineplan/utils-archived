@@ -2,6 +2,7 @@ package winsvc
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -12,50 +13,194 @@ import (
 	"golang.org/x/sys/windows/svc/mgr"
 )
 
-var svcName = "Service"
-var svcDescription string
-var svcExecution func()
-
+var defaultName = "Service"
 var elog debug.Log
 
-// SetServiceName sets windows service name
-func SetServiceName(name string) {
-	svcName = name
+// Service represents a windows service.
+type Service struct {
+	Name string
+	Desc string
+	Exec func()
 }
 
-// SetDescription sets windows service description
-func SetDescription(desc string) {
-	svcDescription = desc
+// New creates a new service name.
+func New() *Service {
+	return &Service{Name: defaultName}
 }
 
-// SetExecution sets windows service execution
-func SetExecution(f func()) {
-	svcExecution = f
+func (s *Service) check() {
+	if s.Name == "" {
+		s.Name = defaultName
+	}
 }
 
-type service struct{}
-
-func (s *service) Execute(_ []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (ssec bool, errno uint32) {
-	changes <- svc.Status{State: svc.Running, Accepts: svc.AcceptStop | svc.AcceptShutdown}
-	elog.Info(1, "Service started.")
-	go svcExecution()
+// Execute will be called at the start of the service,
+// and the service will exit once Execute completes.
+func (s *Service) Execute(args []string, r <-chan svc.ChangeRequest, status chan<- svc.Status) (svcSpecificEC bool, exitCode uint32) {
+	status <- svc.Status{State: svc.Running, Accepts: svc.AcceptStop | svc.AcceptShutdown}
+	s.check()
+	elog.Info(1, fmt.Sprintf("Service %s started.", s.Name))
+	go s.Exec()
 loop:
 	for {
 		c := <-r
 		switch c.Cmd {
 		case svc.Interrogate:
-			changes <- c.CurrentStatus
+			status <- c.CurrentStatus
 			time.Sleep(100 * time.Millisecond)
-			changes <- c.CurrentStatus
+			status <- c.CurrentStatus
 		case svc.Stop, svc.Shutdown:
-			elog.Info(1, fmt.Sprintf("Stopping %s service(%d).", svcName, c.Context))
+			elog.Info(1, fmt.Sprintf("Stopping %s service(%d).", s.Name, c.Context))
 			break loop
 		default:
 			elog.Error(1, fmt.Sprintf("Unexpected control request #%d", c))
 		}
 	}
-	changes <- svc.Status{State: svc.StopPending}
+	status <- svc.Status{State: svc.StopPending}
 	return
+}
+
+// Install installs the service.
+func (s *Service) Install() error {
+	exepath, err := exePath()
+	if err != nil {
+		return err
+	}
+	m, err := mgr.Connect()
+	if err != nil {
+		return err
+	}
+	defer m.Disconnect()
+	s.check()
+	service, err := m.OpenService(s.Name)
+	if err == nil {
+		service.Close()
+		return fmt.Errorf("service %s already exists", s.Name)
+	}
+	if s.Desc == "" {
+		s.Desc = s.Name
+	}
+	service, err = m.CreateService(s.Name, exepath, mgr.Config{
+		StartType:   mgr.StartAutomatic,
+		Description: s.Desc,
+	})
+	if err != nil {
+		return err
+	}
+	defer service.Close()
+	if err := eventlog.InstallAsEventCreate(s.Name, eventlog.Error|eventlog.Warning|eventlog.Info); err != nil {
+		service.Delete()
+		return fmt.Errorf("SetupEventLogSource() failed: %s", err)
+	}
+	return nil
+}
+
+// Remove removes the service.
+func (s *Service) Remove() error {
+	m, err := mgr.Connect()
+	if err != nil {
+		return err
+	}
+	defer m.Disconnect()
+	s.check()
+	service, err := m.OpenService(s.Name)
+	if err != nil {
+		return fmt.Errorf("service %s is not installed", s.Name)
+	}
+	defer service.Close()
+	if err := service.Delete(); err != nil {
+		return err
+	}
+	if err := eventlog.Remove(s.Name); err != nil {
+		return fmt.Errorf("RemoveEventLogSource() failed: %s", err)
+	}
+	return nil
+}
+
+// Run runs the service.
+func (s *Service) Run(isDebug bool) {
+	s.check()
+	var err error
+	if isDebug {
+		elog = debug.New(s.Name)
+	} else {
+		elog, err = eventlog.Open(s.Name)
+		if err != nil {
+			return
+		}
+	}
+	defer elog.Close()
+
+	elog.Info(1, fmt.Sprintf("Starting %s service.", s.Name))
+	run := svc.Run
+	if isDebug {
+		run = debug.Run
+	}
+	if err := run(s.Name, s); err != nil {
+		elog.Error(1, fmt.Sprintf("Run %s service failed: %v", s.Name, err))
+		return
+	}
+	elog.Info(1, fmt.Sprintf("%s service stopped.", s.Name))
+}
+
+// Start starts the service.
+func (s *Service) Start() error {
+	m, err := mgr.Connect()
+	if err != nil {
+		return err
+	}
+	defer m.Disconnect()
+	s.check()
+	service, err := m.OpenService(s.Name)
+	if err != nil {
+		return fmt.Errorf("could not access service: %v", err)
+	}
+	defer service.Close()
+	if err := service.Start(); err != nil {
+		return fmt.Errorf("could not start service: %v", err)
+	}
+	return nil
+}
+
+// Stop stops the service.
+func (s *Service) Stop() error {
+	m, err := mgr.Connect()
+	if err != nil {
+		return err
+	}
+	defer m.Disconnect()
+	s.check()
+	service, err := m.OpenService(s.Name)
+	if err != nil {
+		return fmt.Errorf("could not access service: %v", err)
+	}
+	defer service.Close()
+	status, err := service.Control(svc.Stop)
+	if err != nil {
+		return fmt.Errorf("could not send control=%d: %v", svc.Stop, err)
+	}
+	timeout := time.Now().Add(10 * time.Second)
+	for status.State != svc.Stopped {
+		if timeout.Before(time.Now()) {
+			return fmt.Errorf("timeout waiting for service to go to state=%d", svc.Stopped)
+		}
+		time.Sleep(300 * time.Millisecond)
+		status, err = service.Query()
+		if err != nil {
+			return fmt.Errorf("could not retrieve service status: %v", err)
+		}
+	}
+	return nil
+}
+
+// IsWindowsService reports whether the process is currently executing
+// as a Windows service.
+func IsWindowsService() bool {
+	is, err := svc.IsWindowsService()
+	if err != nil {
+		log.Print(err)
+	}
+	return is
 }
 
 func exePath() (string, error) {
@@ -82,139 +227,4 @@ func exePath() (string, error) {
 		}
 	}
 	return "", err
-}
-
-// InstallService installs windows service
-func InstallService() error {
-	exepath, err := exePath()
-	if err != nil {
-		return err
-	}
-	m, err := mgr.Connect()
-	if err != nil {
-		return err
-	}
-	defer m.Disconnect()
-	s, err := m.OpenService(svcName)
-	if err == nil {
-		s.Close()
-		return fmt.Errorf("service %s already exists", svcName)
-	}
-	if svcDescription == "" {
-		svcDescription = svcName
-	}
-	s, err = m.CreateService(svcName, exepath, mgr.Config{
-		StartType:   mgr.StartAutomatic,
-		Description: svcDescription,
-	})
-	if err != nil {
-		return err
-	}
-	defer s.Close()
-	if err := eventlog.InstallAsEventCreate(svcName, eventlog.Error|eventlog.Warning|eventlog.Info); err != nil {
-		s.Delete()
-		return fmt.Errorf("SetupEventLogSource() failed: %s", err)
-	}
-	return nil
-}
-
-// RemoveService removes windows service
-func RemoveService() error {
-	m, err := mgr.Connect()
-	if err != nil {
-		return err
-	}
-	defer m.Disconnect()
-	s, err := m.OpenService(svcName)
-	if err != nil {
-		return fmt.Errorf("service %s is not installed", svcName)
-	}
-	defer s.Close()
-	if err := s.Delete(); err != nil {
-		return err
-	}
-	if err := eventlog.Remove(svcName); err != nil {
-		return fmt.Errorf("RemoveEventLogSource() failed: %s", err)
-	}
-	return nil
-}
-
-// RunService runs windows service
-func RunService(isDebug bool) {
-	var err error
-	if isDebug {
-		elog = debug.New(svcName)
-	} else {
-		elog, err = eventlog.Open(svcName)
-		if err != nil {
-			return
-		}
-	}
-	defer elog.Close()
-
-	elog.Info(1, fmt.Sprintf("Starting %s service.", svcName))
-	run := svc.Run
-	if isDebug {
-		run = debug.Run
-	}
-	if err := run(svcName, &service{}); err != nil {
-		elog.Error(1, fmt.Sprintf("%s service failed: %v", svcName, err))
-		return
-	}
-	elog.Info(1, fmt.Sprintf("%s service stopped.", svcName))
-}
-
-// StartService starts windows service
-func StartService() error {
-	m, err := mgr.Connect()
-	if err != nil {
-		return err
-	}
-	defer m.Disconnect()
-	s, err := m.OpenService(svcName)
-	if err != nil {
-		return fmt.Errorf("could not access service: %v", err)
-	}
-	defer s.Close()
-	if err := s.Start(); err != nil {
-		return fmt.Errorf("could not start service: %v", err)
-	}
-	return nil
-}
-
-// StopService stops windows service
-func StopService() error {
-	m, err := mgr.Connect()
-	if err != nil {
-		return err
-	}
-	defer m.Disconnect()
-	s, err := m.OpenService(svcName)
-	if err != nil {
-		return fmt.Errorf("could not access service: %v", err)
-	}
-	defer s.Close()
-	status, err := s.Control(svc.Stop)
-	if err != nil {
-		return fmt.Errorf("could not send control=%d: %v", svc.Stop, err)
-	}
-	timeout := time.Now().Add(10 * time.Second)
-	for status.State != svc.Stopped {
-		if timeout.Before(time.Now()) {
-			return fmt.Errorf("timeout waiting for service to go to state=%d", svc.Stopped)
-		}
-		time.Sleep(300 * time.Millisecond)
-		status, err = s.Query()
-		if err != nil {
-			return fmt.Errorf("could not retrieve service status: %v", err)
-		}
-	}
-	return nil
-}
-
-// IsWindowsService reports whether the process is currently executing
-// as a Windows service.
-func IsWindowsService() (b bool) {
-	b, _ = svc.IsWindowsService()
-	return
 }
