@@ -1,49 +1,77 @@
 package mail
 
 import (
-	"io"
+	"bytes"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/go-mail/mail"
 )
 
-// Setting contains mail setting
-type Setting struct {
-	From           string
-	To, Cc, Bcc    []string
-	Password       string
-	SMTPServer     string
-	SMTPServerPort int
+// Dialer is a dialer to an SMTP server.
+type Dialer struct {
+	Host     string
+	Port     int
+	Account  string
+	Password string
+	Timeout  time.Duration
 }
 
-// Attachment contains attachment file path and filename when sending mail
+// Message represents an email.
+type Message struct {
+	To, Cc, Bcc []string
+	Subject     string
+	Body        string
+	Attachments []*Attachment
+}
+
+// Attachment represents an attachment.
 type Attachment struct {
-	FilePath string
 	Filename string
-	Reader   io.Reader
+	Path     string
+	Bytes    []byte
 }
 
-// Send mail according setting, subject, body and attachment
-func (s *Setting) Send(subject string, body string, attachments ...*Attachment) error {
-	m := mail.NewMessage()
-	m.SetHeader("From", s.From)
-	m.SetHeader("To", s.To...)
-	m.SetHeader("Cc", s.Cc...)
-	m.SetHeader("Bcc", s.Bcc...)
-	m.SetHeader("Subject", subject)
-	m.SetBody("text/plain", body)
-	for _, attachment := range attachments {
-		if attachment.Reader != nil {
-			m.AttachReader(attachment.Filename, attachment.Reader)
-		} else if attachment.Filename != "" {
-			m.Attach(attachment.FilePath, mail.Rename(attachment.Filename))
+// Send sends the given messages.
+func (d *Dialer) Send(msg ...*Message) error {
+	for _, m := range msg {
+		message := mail.NewMessage()
+		message.SetHeader("From", d.Account)
+		message.SetHeader("To", m.To...)
+		message.SetHeader("Cc", m.Cc...)
+		message.SetHeader("Bcc", m.Bcc...)
+		message.SetHeader("Subject", m.Subject)
+		message.SetBody("text/plain", m.Body)
+		for _, a := range m.Attachments {
+			if a.Bytes != nil {
+				if a.Filename == "" {
+					a.Filename = "attachment"
+				}
+				message.AttachReader(a.Filename, bytes.NewBuffer(a.Bytes))
+				continue
+			}
+			if a.Filename == "" {
+				a.Filename = filepath.Base(a.Path)
+			}
+			f, err := os.Open(a.Path)
+			if err != nil {
+				return err
+			}
+			message.AttachReader(a.Filename, f)
+		}
+
+		dialer := mail.NewDialer(d.Host, d.Port, d.Account, d.Password)
+		if d.Timeout != 0 {
+			dialer.Timeout = d.Timeout
 		} else {
-			m.Attach(attachment.FilePath)
+			dialer.Timeout = 3 * time.Minute
+		}
+
+		if err := dialer.DialAndSend(message); err != nil {
+			return err
 		}
 	}
 
-	d := mail.NewDialer(s.SMTPServer, s.SMTPServerPort, s.From, s.Password)
-	d.Timeout = 3 * time.Minute
-
-	return d.DialAndSend(m)
+	return nil
 }

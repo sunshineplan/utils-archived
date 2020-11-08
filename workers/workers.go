@@ -6,71 +6,71 @@ import (
 	"runtime"
 )
 
-var defaultWorkers = Workers{Max: runtime.NumCPU() * 2}
+var defaultWorkers = &Workers{Max: runtime.NumCPU() * 2}
 
 // Workers can run jobs concurrently with limit
 type Workers struct {
 	Max int
 }
 
-// New create new workers with max limit
-func New(max int) Workers {
-	return Workers{Max: max}
+// New creates a new Workers with max limit.
+func New(max int) *Workers {
+	return &Workers{Max: max}
 }
 
-// SetMax default workers max limit
+// SetMax sets default workers max limit.
 func SetMax(max int) {
 	defaultWorkers.Max = max
 }
 
-// Slice run workers on slice without limit
+// Slice runs the slice without limit.
 func Slice(Slice interface{}, Runner func(int, interface{})) error {
 	return runSlice(0, Slice, Runner)
 }
 
-// Map run workers on slice without limit
+// Map runs the map without limit.
 func Map(Map interface{}, Runner func(interface{}, interface{})) error {
 	return runMap(0, Map, Runner)
 }
 
-// Range run workers on range without limit
+// Range runs the range without limit.
 func Range(Start, End int, Runner func(int)) error {
 	return runRange(0, Start, End, Runner)
 }
 
-// DefaultSlice use default workers run on slice
+// DefaultSlice runs the slice on default workers.
 func DefaultSlice(Slice interface{}, Runner func(int, interface{})) error {
 	return defaultWorkers.Slice(Slice, Runner)
 }
 
-// DefaultMap use default workers run on slice
+// DefaultMap runs the map on default workers.
 func DefaultMap(Map interface{}, Runner func(interface{}, interface{})) error {
 	return defaultWorkers.Map(Map, Runner)
 }
 
-// DefaultRange use default workers run on range
+// DefaultRange runs the range on default workers.
 func DefaultRange(Start, End int, Runner func(int)) error {
 	return defaultWorkers.Range(Start, End, Runner)
 }
 
-// Slice run workers on slice
-func (w Workers) Slice(Slice interface{}, Runner func(int, interface{})) error {
+// Slice runs the slice on workers.
+func (w *Workers) Slice(Slice interface{}, Runner func(int, interface{})) error {
 	return runSlice(w.Max, Slice, Runner)
 }
 
-// Map run workers on slice
-func (w Workers) Map(Map interface{}, Runner func(interface{}, interface{})) error {
+// Map runs the map on workers.
+func (w *Workers) Map(Map interface{}, Runner func(interface{}, interface{})) error {
 	return runMap(w.Max, Map, Runner)
 }
 
-// Range run workers on range
-func (w Workers) Range(Start, End int, Runner func(int)) error {
+// Range runs the range on workers.
+func (w *Workers) Range(Start, End int, Runner func(int)) error {
 	return runRange(w.Max, Start, End, Runner)
 }
 
 func runSlice(Limit int, Slice interface{}, Runner func(int, interface{})) error {
 	if reflect.TypeOf(Slice).Kind() != reflect.Slice {
-		return fmt.Errorf("First argument must be a slice")
+		return fmt.Errorf("Slice argument must be a slice")
 	}
 	values := reflect.ValueOf(Slice)
 	if Limit <= 0 {
@@ -92,7 +92,7 @@ func runSlice(Limit int, Slice interface{}, Runner func(int, interface{})) error
 
 func runMap(Limit int, Map interface{}, Runner func(interface{}, interface{})) error {
 	if reflect.TypeOf(Map).Kind() != reflect.Map {
-		return fmt.Errorf("First argument must be a map")
+		return fmt.Errorf("Map argument must be a map")
 	}
 	value := reflect.ValueOf(Map)
 	if Limit <= 0 {

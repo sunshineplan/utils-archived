@@ -15,7 +15,7 @@ import (
 const defaultTemplate = `[{{.Done}}{{.Undone}}]   {{printf "%.2f/s" .Speed}} - {{.Current -}}
 {{printf "(%.2f%%)" .Percent}} of {{.Total}}   {{printf "Left: %s" .Left}} `
 
-// ProgressBar is a simple progress bar
+// ProgressBar is a simple progress bar.
 type ProgressBar struct {
 	sync.Mutex
 	blockWidth int
@@ -47,7 +47,7 @@ func (f *format) execute(pb *ProgressBar) {
 	pb.lastWidth = width
 }
 
-// New returns a new ProgressBar with default options
+// New returns a new ProgressBar with default options.
 func New(total int, done chan bool) *ProgressBar {
 	return &ProgressBar{
 		blockWidth: 50,
@@ -58,19 +58,19 @@ func New(total int, done chan bool) *ProgressBar {
 	}
 }
 
-// SetWidth sets progress bar block width
+// SetWidth sets progress bar block width.
 func (pb *ProgressBar) SetWidth(blockWidth int) *ProgressBar {
 	pb.blockWidth = blockWidth
 	return pb
 }
 
-// SetRefresh sets progress bar refresh time for check speed
+// SetRefresh sets progress bar refresh time for check speed.
 func (pb *ProgressBar) SetRefresh(refresh time.Duration) *ProgressBar {
 	pb.refresh = refresh
 	return pb
 }
 
-// SetTemplate sets progress bar template
+// SetTemplate sets progress bar template.
 func (pb *ProgressBar) SetTemplate(tmplt string) error {
 	t := template.New("ProgressBar")
 	if _, err := t.Parse(tmplt); err != nil {
@@ -83,14 +83,14 @@ func (pb *ProgressBar) SetTemplate(tmplt string) error {
 	return nil
 }
 
-// Add adds the specified amount to the progress bar
+// Add adds the specified amount to the progress bar.
 func (pb *ProgressBar) Add(num int) {
 	pb.Lock()
 	defer pb.Unlock()
 	pb.current += num
 }
 
-// Start ProgressBar
+// Start starts the progress bar.
 func (pb *ProgressBar) Start() {
 	go func() {
 		start := time.Now()

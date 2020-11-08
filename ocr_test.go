@@ -1,16 +1,17 @@
-package ocr
+package utils
 
 import (
+	"net/http"
 	"os"
 	"testing"
 )
 
 func TestOCR(t *testing.T) {
-	f, err := os.Open("ocr.space.logo.png")
+	f, err := os.Open("testdata/ocr.space.logo.png")
 	if err != nil {
 		t.Error(err)
 	}
-	r, err := Read(f)
+	r, err := OCRWithClient(f, http.DefaultClient)
 	if err != nil {
 		t.Error(err)
 	}

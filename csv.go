@@ -1,4 +1,4 @@
-package export
+package utils
 
 import (
 	"encoding/csv"
@@ -7,7 +7,19 @@ import (
 	"reflect"
 )
 
-func exportCSV(fieldnames []string, slice interface{}, w io.Writer, utf8bom bool) error {
+var utf8bom = []byte{0xEF, 0xBB, 0xBF}
+
+// ExportCSV writes slice as csv format with fieldnames to writer w.
+func ExportCSV(fieldnames []string, slice interface{}, w io.Writer) error {
+	return exportCSV(fieldnames, slice, w, false)
+}
+
+// ExportUTF8CSV writes slice as utf8 csv format with fieldnames to writer w.
+func ExportUTF8CSV(fieldnames []string, slice interface{}, w io.Writer) error {
+	return exportCSV(fieldnames, slice, w, true)
+}
+
+func exportCSV(fieldnames []string, slice interface{}, w io.Writer, utf8 bool) error {
 	if reflect.TypeOf(slice).Kind() != reflect.Slice {
 		return fmt.Errorf("rows is not slice")
 	}
@@ -20,9 +32,10 @@ func exportCSV(fieldnames []string, slice interface{}, w io.Writer, utf8bom bool
 		}
 	}
 
-	if utf8bom {
-		w.Write([]byte{0xEF, 0xBB, 0xBF})
+	if utf8 {
+		w.Write(utf8bom)
 	}
+
 	writer := csv.NewWriter(w)
 	if err := writer.Write(fieldnames); err != nil {
 		return err
@@ -58,21 +71,12 @@ func exportCSV(fieldnames []string, slice interface{}, w io.Writer, utf8bom bool
 			return err
 		}
 	}
+
 	writer.Flush()
 	if err := writer.Error(); err != nil {
 		return err
 	}
 	return nil
-}
-
-// CSV export csv content to writer
-func CSV(fieldnames []string, slice interface{}, w io.Writer) error {
-	return exportCSV(fieldnames, slice, w, false)
-}
-
-// CSVWithUTF8BOM export csv content to writer
-func CSVWithUTF8BOM(fieldnames []string, slice interface{}, w io.Writer) error {
-	return exportCSV(fieldnames, slice, w, true)
 }
 
 func getStructFieldNames(i interface{}) ([]string, error) {

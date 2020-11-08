@@ -1,4 +1,4 @@
-package ste
+package utils
 
 import (
 	"bytes"
@@ -14,7 +14,7 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 )
 
-// Encrypt text by key
+// Encrypt encrypts text by key.
 func Encrypt(key, plaintext string) string {
 	if key == "" {
 		return strings.ReplaceAll(base64.StdEncoding.EncodeToString([]byte(plaintext)), "=", "")
@@ -31,7 +31,7 @@ func Encrypt(key, plaintext string) string {
 	return strings.ReplaceAll(base64.StdEncoding.EncodeToString(concat(salt, nonce, ciphertext, compression)), "=", "")
 }
 
-// Decrypt text by key
+// Decrypt decrypts text by key.
 func Decrypt(key, ciphertext string) (string, error) {
 	if r := len(ciphertext) % 4; r > 0 {
 		ciphertext += strings.Repeat("=", 4-r)

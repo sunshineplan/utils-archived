@@ -1,4 +1,4 @@
-package ste
+package utils
 
 import (
 	"crypto/rand"
@@ -16,19 +16,19 @@ func TestEncryptAndDecrypt(t *testing.T) {
 			plaintext := randomString(pl)
 			pt, err := Decrypt(key, Encrypt(key, plaintext))
 			if err != nil {
-				t.Error("Encrypt And Decrypt failed", err)
+				t.Error(kl, pl, err)
 			}
 			if pt != "" && pt != plaintext {
-				t.Error("Decrypt result is not except one")
+				t.Errorf("expected %q; got %q", plaintext, pt)
 			}
 		}
-		plaintext := "こんにちは, 世界！"
+		plaintext := "测试"
 		pt, err := Decrypt(key, Encrypt(key, plaintext))
 		if err != nil {
-			t.Error("Encrypt And Decrypt non-English character failed", err)
+			t.Error(err)
 		}
 		if pt != "" && pt != plaintext {
-			t.Error("Decrypt result is not except one")
+			t.Errorf("expected %q; got %q", plaintext, pt)
 		}
 	}
 }

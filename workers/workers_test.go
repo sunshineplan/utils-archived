@@ -1,7 +1,6 @@
 package workers
 
 import (
-	"fmt"
 	"math/rand"
 	"reflect"
 	"runtime"
@@ -22,11 +21,10 @@ func TestSlice(t *testing.T) {
 	if err := Slice(slice, func(i int, item interface{}) {
 		result[i] = strings.Repeat(item.(test).char, item.(test).times)
 	}); err != nil {
-		fmt.Println(err)
-		t.Error("RunOnSlice workers failed")
+		t.Error(err)
 	}
-	if !reflect.DeepEqual(result, []string{"a", "bb", "ccc"}) {
-		t.Error("RunOnSlice workers result is not except one")
+	if !reflect.DeepEqual([]string{"a", "bb", "ccc"}, result) {
+		t.Errorf("expected %q; got %q", []string{"a", "bb", "ccc"}, result)
 	}
 }
 
@@ -38,13 +36,11 @@ func TestMap(t *testing.T) {
 		result = append(result, strings.Repeat(k.(string), v.(int)))
 		m.Unlock()
 	}); err != nil {
-		fmt.Println(err)
-		t.Error("RunOnMap workers failed")
+		t.Error(err)
 	}
 	sort.Strings(result)
-	if !reflect.DeepEqual(result, []string{"a", "bb", "ccc"}) {
-		fmt.Println(result)
-		t.Error("RunOnMap workers result is not except one")
+	if !reflect.DeepEqual([]string{"a", "bb", "ccc"}, result) {
+		t.Errorf("expected %q; got %q", []string{"a", "bb", "ccc"}, result)
 	}
 }
 
@@ -55,11 +51,10 @@ func TestRange(t *testing.T) {
 	if err := Range(1, end, func(num int) {
 		result[num-1] = strings.Repeat(items[num-1], num)
 	}); err != nil {
-		fmt.Println(err)
-		t.Error("RunOnRange workers failed")
+		t.Error(err)
 	}
-	if !reflect.DeepEqual(result, []string{"a", "bb", "ccc"}) {
-		t.Error("RunOnRange workers result is not except one")
+	if !reflect.DeepEqual([]string{"a", "bb", "ccc"}, result) {
+		t.Errorf("expected %q; got %q", []string{"a", "bb", "ccc"}, result)
 	}
 }
 
@@ -88,23 +83,23 @@ func TestLimit(t *testing.T) {
 	})
 	time.Sleep(time.Second)
 	if count1 != limit {
-		t.Errorf("Unlimited workers goroutine number is not %d: %d", limit, count1)
+		t.Errorf("expected %d; got %d", limit, count1)
 	}
 	if count2 != runtime.NumCPU()*2 {
-		t.Errorf("Default workers goroutine number is not %d: %d", runtime.NumCPU()*2, count2)
+		t.Errorf("expected %d; got %d", runtime.NumCPU()*2, count2)
 	}
 	if count3 != workers {
-		t.Errorf("Workers goroutine number is not %d: %d", workers, count3)
+		t.Errorf("expected %d; got %d", workers, count3)
 	}
 }
 
 func TestSetMax(t *testing.T) {
 	SetMax(5)
-	if defaultWorkers.Max != 5 {
-		t.Error("SetMax result is not except one")
+	if max := defaultWorkers.Max; max != 5 {
+		t.Errorf("expected %d; got %d", 5, max)
 	}
 	SetMax(100)
-	if defaultWorkers.Max != 100 {
-		t.Error("SetMax result is not except one")
+	if max := defaultWorkers.Max; max != 100 {
+		t.Errorf("expected %d; got %d", 100, max)
 	}
 }

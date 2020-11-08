@@ -28,9 +28,9 @@ func TestProgessBar(t *testing.T) {
 func TestSetTemplate(t *testing.T) {
 	pb := ProgressBar{}
 	if err := pb.SetTemplate(`{{.Done}}`); err != nil {
-		t.Error("test except non error")
+		t.Error(err)
 	}
 	if err := pb.SetTemplate(`{{.Test}}`); err == nil {
-		t.Error("test except error")
+		t.Error("gave nil error; want error")
 	}
 }

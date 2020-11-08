@@ -1,4 +1,4 @@
-package retry
+package utils
 
 import (
 	"errors"
@@ -6,14 +6,14 @@ import (
 )
 
 func TestRetry(t *testing.T) {
-	if err := Do(func() error {
+	if err := Retry(func() error {
 		return nil
 	}, 3, 1); err != nil {
-		t.Error("test except non error")
+		t.Error(err)
 	}
-	if err := Do(func() error {
+	if err := Retry(func() error {
 		return errors.New("error")
 	}, 3, 1); err == nil {
-		t.Error("test except error")
+		t.Error("gave nil error; want error")
 	}
 }

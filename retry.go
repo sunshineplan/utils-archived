@@ -1,9 +1,9 @@
-package retry
+package utils
 
 import "time"
 
-// Do keeps retrying the function until no error is returned.
-func Do(fn func() error, attempts, delay uint) (err error) {
+// Retry keeps retrying the function until no error is returned.
+func Retry(fn func() error, attempts, delay uint) (err error) {
 	var i uint
 	for ; i < attempts; i++ {
 		if err = fn(); err == nil {
