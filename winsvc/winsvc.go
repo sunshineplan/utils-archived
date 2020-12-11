@@ -14,7 +14,6 @@ import (
 )
 
 var defaultName = "Service"
-var elog debug.Log
 
 // Service represents a windows service.
 type Service struct {
@@ -37,6 +36,7 @@ func (s *Service) check() {
 // Execute will be called at the start of the service,
 // and the service will exit once Execute completes.
 func (s *Service) Execute(args []string, r <-chan svc.ChangeRequest, status chan<- svc.Status) (svcSpecificEC bool, exitCode uint32) {
+	var elog debug.Log
 	status <- svc.Status{State: svc.Running, Accepts: svc.AcceptStop | svc.AcceptShutdown}
 	s.check()
 	elog.Info(1, fmt.Sprintf("Service %s started.", s.Name))
@@ -119,6 +119,7 @@ func (s *Service) Remove() error {
 
 // Run runs the service.
 func (s *Service) Run(isDebug bool) {
+	var elog debug.Log
 	s.check()
 	var err error
 	if isDebug {
