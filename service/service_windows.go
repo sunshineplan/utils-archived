@@ -1,10 +1,8 @@
-package winsvc
+package service
 
 import (
 	"fmt"
-	"log"
 	"os"
-	"path/filepath"
 	"time"
 
 	"golang.org/x/sys/windows/svc"
@@ -13,32 +11,12 @@ import (
 	"golang.org/x/sys/windows/svc/mgr"
 )
 
-var defaultName = "Service"
-
-// Service represents a windows service.
-type Service struct {
-	Name string
-	Desc string
-	Exec func()
-}
-
-// New creates a new service name.
-func New() *Service {
-	return &Service{Name: defaultName}
-}
-
-func (s *Service) check() {
-	if s.Name == "" {
-		s.Name = defaultName
-	}
-}
+var elog debug.Log
 
 // Execute will be called at the start of the service,
 // and the service will exit once Execute completes.
 func (s *Service) Execute(args []string, r <-chan svc.ChangeRequest, status chan<- svc.Status) (svcSpecificEC bool, exitCode uint32) {
-	var elog debug.Log
 	status <- svc.Status{State: svc.Running, Accepts: svc.AcceptStop | svc.AcceptShutdown}
-	s.check()
 	elog.Info(1, fmt.Sprintf("Service %s started.", s.Name))
 	go s.Exec()
 loop:
@@ -62,7 +40,7 @@ loop:
 
 // Install installs the service.
 func (s *Service) Install() error {
-	exepath, err := exePath()
+	execPath, err := os.Executable()
 	if err != nil {
 		return err
 	}
@@ -71,7 +49,7 @@ func (s *Service) Install() error {
 		return err
 	}
 	defer m.Disconnect()
-	s.check()
+
 	service, err := m.OpenService(s.Name)
 	if err == nil {
 		service.Close()
@@ -80,7 +58,7 @@ func (s *Service) Install() error {
 	if s.Desc == "" {
 		s.Desc = s.Name
 	}
-	service, err = m.CreateService(s.Name, exepath, mgr.Config{
+	service, err = m.CreateService(s.Name, execPath, mgr.Config{
 		StartType:   mgr.StartAutomatic,
 		Description: s.Desc,
 	})
@@ -88,6 +66,7 @@ func (s *Service) Install() error {
 		return err
 	}
 	defer service.Close()
+
 	if err := eventlog.InstallAsEventCreate(s.Name, eventlog.Error|eventlog.Warning|eventlog.Info); err != nil {
 		service.Delete()
 		return fmt.Errorf("SetupEventLogSource() failed: %s", err)
@@ -102,25 +81,21 @@ func (s *Service) Remove() error {
 		return err
 	}
 	defer m.Disconnect()
-	s.check()
+
 	service, err := m.OpenService(s.Name)
 	if err != nil {
 		return fmt.Errorf("service %s is not installed", s.Name)
 	}
 	defer service.Close()
+
 	if err := service.Delete(); err != nil {
 		return err
 	}
-	if err := eventlog.Remove(s.Name); err != nil {
-		return fmt.Errorf("RemoveEventLogSource() failed: %s", err)
-	}
-	return nil
+	return eventlog.Remove(s.Name)
 }
 
 // Run runs the service.
 func (s *Service) Run(isDebug bool) {
-	var elog debug.Log
-	s.check()
 	var err error
 	if isDebug {
 		elog = debug.New(s.Name)
@@ -151,16 +126,14 @@ func (s *Service) Start() error {
 		return err
 	}
 	defer m.Disconnect()
-	s.check()
+
 	service, err := m.OpenService(s.Name)
 	if err != nil {
 		return fmt.Errorf("could not access service: %v", err)
 	}
 	defer service.Close()
-	if err := service.Start(); err != nil {
-		return fmt.Errorf("could not start service: %v", err)
-	}
-	return nil
+
+	return service.Start()
 }
 
 // Stop stops the service.
@@ -170,7 +143,7 @@ func (s *Service) Stop() error {
 		return err
 	}
 	defer m.Disconnect()
-	s.check()
+
 	service, err := m.OpenService(s.Name)
 	if err != nil {
 		return fmt.Errorf("could not access service: %v", err)
@@ -194,38 +167,17 @@ func (s *Service) Stop() error {
 	return nil
 }
 
-// IsWindowsService reports whether the process is currently executing
-// as a Windows service.
-func IsWindowsService() bool {
-	is, err := svc.IsWindowsService()
-	if err != nil {
-		log.Print(err)
+// Restart restarts the service.
+func (s *Service) Restart() error {
+	if err := s.Stop(); err != nil {
+		return err
 	}
-	return is
+	return s.Start()
 }
 
-func exePath() (string, error) {
-	prog := os.Args[0]
-	p, err := filepath.Abs(prog)
-	if err != nil {
-		return "", err
-	}
-	fi, err := os.Stat(p)
-	if err == nil {
-		if !fi.Mode().IsDir() {
-			return p, nil
-		}
-		err = fmt.Errorf("%s is directory", p)
-	}
-	if filepath.Ext(p) == "" {
-		p += ".exe"
-		fi, err := os.Stat(p)
-		if err == nil {
-			if !fi.Mode().IsDir() {
-				return p, nil
-			}
-			err = fmt.Errorf("%s is directory", p)
-		}
-	}
-	return "", err
+// IsWindowsService reports whether the process is currently executing
+// as a service.
+func IsWindowsService() bool {
+	is, _ := svc.IsWindowsService()
+	return is
 }
