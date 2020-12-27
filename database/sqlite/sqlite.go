@@ -35,11 +35,12 @@ func (c *Config) Backup(file string) error {
 	}
 
 	var args []string
+	args = append(args, "-c")
 	args = append(args, backupScript)
 	args = append(args, c.Path)
 	args = append(args, file)
 
-	command := exec.Command(cmd, "-c", args...)
+	command := exec.Command(cmd, args...)
 	var stderr bytes.Buffer
 	command.Stderr = &stderr
 	if err := command.Run(); err != nil {
@@ -61,11 +62,12 @@ func (c *Config) Restore(file string) error {
 	}
 
 	var args []string
+	args = append(args, "-c")
 	args = append(args, restoreScript)
 	args = append(args, c.Path)
 	args = append(args, file)
 
-	command := exec.Command(cmd, "-c", args...)
+	command := exec.Command(cmd, args...)
 	var stderr bytes.Buffer
 	command.Stderr = &stderr
 	if err := command.Run(); err != nil {
