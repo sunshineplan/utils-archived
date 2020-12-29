@@ -10,7 +10,7 @@ import (
 	_ "github.com/mattn/go-sqlite3" // sqlite driver
 )
 
-const backupScript = "import sys;import sqlite3;db=sqlite3.connect(sys.argv[1]);f=open(sys.argv[2],'w');f.write('\n'.join(db.iterdump()))"
+const backupScript = "import sys;import sqlite3;db=sqlite3.connect(sys.argv[1]);f=open(sys.argv[2],'w');f.write('\\n'.join(db.iterdump()))"
 const restoreScript = "import sys;import sqlite3;db=sqlite3.connect(sys.argv[1]);f=open(sys.argv[2]);db.executescript(f.read())"
 
 // Config contains sqlite basic configure.
