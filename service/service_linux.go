@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 const systemdScript = `[Unit]
@@ -20,7 +21,7 @@ WantedBy=multi-user.target
 `
 
 func (s *Service) unitFile() string {
-	return "/etc/systemd/system/" + s.Name + ".service"
+	return "/etc/systemd/system/" + strings.ToLower(s.Name) + ".service"
 }
 
 // Install installs the service.
@@ -90,7 +91,7 @@ func (s *Service) Restart() error {
 }
 
 func (s *Service) shell(action string) error {
-	cmd := exec.Command("systemctl", action, s.Name)
+	cmd := exec.Command("systemctl", action, strings.ToLower(s.Name))
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("Execute %q failed: %v", action, err)
