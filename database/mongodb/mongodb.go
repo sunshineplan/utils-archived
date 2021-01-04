@@ -3,7 +3,6 @@ package mongodb
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"fmt"
 	"os/exec"
 	"time"
@@ -24,7 +23,7 @@ type Config struct {
 }
 
 // Open opens a mongodb database.
-func (c *Config) Open() (*sql.DB, error) {
+func (c *Config) Open() (*mongo.Client, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(
