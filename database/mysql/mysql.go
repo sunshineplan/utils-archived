@@ -22,7 +22,8 @@ type Config struct {
 
 // Open opens a mysql database.
 func (c *Config) Open() (*sql.DB, error) {
-	return sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", c.Username, c.Password, c.Server, c.Port, c.Database))
+	return sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true",
+		c.Username, c.Password, c.Server, c.Port, c.Database))
 }
 
 // Backup backups mysql database to file.
