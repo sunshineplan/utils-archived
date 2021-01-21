@@ -1,4 +1,4 @@
-package utils
+package csv
 
 import (
 	"encoding/csv"
@@ -9,17 +9,17 @@ import (
 
 var utf8bom = []byte{0xEF, 0xBB, 0xBF}
 
-// ExportCSV writes slice as csv format with fieldnames to writer w.
-func ExportCSV(fieldnames []string, slice interface{}, w io.Writer) error {
-	return exportCSV(fieldnames, slice, w, false)
+// Export writes slice as csv format with fieldnames to writer w.
+func Export(fieldnames []string, slice interface{}, w io.Writer) error {
+	return export(fieldnames, slice, w, false)
 }
 
-// ExportUTF8CSV writes slice as utf8 csv format with fieldnames to writer w.
-func ExportUTF8CSV(fieldnames []string, slice interface{}, w io.Writer) error {
-	return exportCSV(fieldnames, slice, w, true)
+// ExportUTF8 writes slice as utf8 csv format with fieldnames to writer w.
+func ExportUTF8(fieldnames []string, slice interface{}, w io.Writer) error {
+	return export(fieldnames, slice, w, true)
 }
 
-func exportCSV(fieldnames []string, slice interface{}, w io.Writer, utf8 bool) error {
+func export(fieldnames []string, slice interface{}, w io.Writer, utf8 bool) error {
 	if reflect.TypeOf(slice).Kind() != reflect.Slice {
 		return fmt.Errorf("rows is not slice")
 	}

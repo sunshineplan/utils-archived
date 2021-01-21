@@ -1,4 +1,4 @@
-package utils
+package csv
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestCSV(t *testing.T) {
+func TestExport(t *testing.T) {
 	type test struct{ A, B interface{} }
 	testcase := []struct {
 		name      string
@@ -17,19 +17,19 @@ func TestCSV(t *testing.T) {
 			name:      "map slice",
 			filenames: []string{"A", "B"},
 			slice: []map[string]interface{}{
-				map[string]interface{}{"A": "a", "B": "b"},
-				map[string]interface{}{"A": "aa", "B": nil},
+				{"A": "a", "B": "b"},
+				{"A": "aa", "B": nil},
 			},
 		},
 		{
 			name:      "struct slice",
 			filenames: []string{"A", "B"},
-			slice:     []test{test{A: "a", B: "b"}, test{A: "aa", B: nil}},
+			slice:     []test{{A: "a", B: "b"}, {A: "aa", B: nil}},
 		},
 		{
 			name:      "struct slice without filenames",
 			filenames: nil,
-			slice:     []test{test{A: "a", B: "b"}, test{A: "aa", B: nil}},
+			slice:     []test{{A: "a", B: "b"}, {A: "aa", B: nil}},
 		},
 		{
 			name:      "interface slice",
@@ -47,7 +47,7 @@ aa,
 
 	for _, tc := range testcase {
 		var b bytes.Buffer
-		if err := ExportCSV(tc.filenames, tc.slice, &b); err != nil {
+		if err := Export(tc.filenames, tc.slice, &b); err != nil {
 			t.Error(tc.name, err)
 		}
 		if r := b.String(); r != result {
@@ -56,12 +56,12 @@ aa,
 	}
 }
 
-func TestCSVWithUTF8BOM(t *testing.T) {
+func TestExportUTF8(t *testing.T) {
 	result := `A,B
 a,b
 `
 	var b bytes.Buffer
-	if err := ExportUTF8CSV([]string{"A", "B"}, []interface{}{map[string]string{"A": "a", "B": "b"}}, &b); err != nil {
+	if err := ExportUTF8([]string{"A", "B"}, []interface{}{map[string]string{"A": "a", "B": "b"}}, &b); err != nil {
 		t.Error(err)
 	}
 	c := b.Bytes()
