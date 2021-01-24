@@ -6,12 +6,15 @@ import (
 	"testing"
 )
 
-type result struct{ A, B string }
+type result struct {
+	A string
+	B int
+}
 
 func TestReader(t *testing.T) {
 	csv := `A,B
-a,b
-1,2
+a,1
+b,2
 `
 	rs, err := ReadAll(strings.NewReader(csv))
 	if err != nil {
@@ -31,7 +34,7 @@ a,b
 		}
 		results = append(results, result)
 	}
-	if !reflect.DeepEqual([]result{{"a", "b"}, {"1", "2"}}, results) {
-		t.Errorf("expected %v; got %v", []result{{"a", "b"}, {"1", "2"}}, results)
+	if !reflect.DeepEqual([]result{{"a", 1}, {"b", 2}}, results) {
+		t.Errorf("expected %v; got %v", []result{{"a", 1}, {"b", 2}}, results)
 	}
 }

@@ -56,7 +56,7 @@ func (rs *Rows) Next() bool {
 
 // Scan copies the columns in the current row into the values pointed at by dest.
 // The number of values in dest must be the same as the number of columns in Rows.
-func (rs *Rows) Scan(dest ...*string) error {
+func (rs *Rows) Scan(dest ...interface{}) error {
 	if rs.closed {
 		return fmt.Errorf("Rows are closed")
 	}
@@ -65,7 +65,9 @@ func (rs *Rows) Scan(dest ...*string) error {
 	}
 
 	for i, v := range rs.records[rs.position-1] {
-		*dest[i] = v
+		if err := convertAssign(dest[i], v); err != nil {
+			return fmt.Errorf(`Scan error on field index %d, name %q: %v`, i, rs.Fields()[i], err)
+		}
 	}
 
 	return nil
