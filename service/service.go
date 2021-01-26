@@ -112,7 +112,6 @@ Loop:
 				header.Typeflag,
 				header.Name)
 		}
-
 	}
 
 	return s.Restart()
