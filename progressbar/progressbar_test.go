@@ -38,7 +38,7 @@ func TestFromReader(t *testing.T) {
 		t.Fatal(err)
 	}
 	pb := New(total).SetUnit("bytes")
-	if err := pb.FromReader(resp.Body, ioutil.Discard); err != nil {
+	if _, err := pb.FromReader(resp.Body, ioutil.Discard); err != nil {
 		t.Fatal(err)
 	}
 	<-pb.Done

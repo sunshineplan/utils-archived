@@ -48,8 +48,7 @@ func (c *Config) Backup(file string) error {
 	args = append(args, fmt.Sprintf("-p%s", c.Password))
 	args = append(args, fmt.Sprintf("-r%s", file))
 	args = append(args, "--add-drop-database")
-	args = append(args, "--add-drop-trigger")
-	args = append(args, "-CB")
+	args = append(args, "-RB")
 	args = append(args, fmt.Sprintf("%s", c.Database))
 
 	command := exec.Command(cmd, arg, strings.Join(args, " "))
