@@ -25,17 +25,24 @@ type Config struct {
 
 // URI returns mongodb uri connection string
 func (c *Config) URI() string {
-	var prefix string
+	var prefix, auth, server string
 	if c.SRV {
 		prefix = "mongodb+srv"
 	} else {
 		prefix = "mongodb"
 	}
 
-	if c.Username == "" {
-		return fmt.Sprintf("%s://%s:%d/%s", prefix, c.Server, c.Port, c.Database)
+	if c.Username != "" && c.Password != "" {
+		auth = fmt.Sprintf("%s:%s@", c.Username, c.Password)
 	}
-	return fmt.Sprintf("%s://%s:%s@%s:%d/%s", prefix, c.Username, c.Password, c.Server, c.Port, c.Database)
+
+	if c.SRV || c.Port == 27017 {
+		server = c.Server
+	} else {
+		server = fmt.Sprintf("%s:%d", c.Server, c.Port)
+	}
+
+	return fmt.Sprintf("%s://%s%s/%s", prefix, auth, server, c.Database)
 }
 
 // Open opens a mongodb database.
