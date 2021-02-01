@@ -78,7 +78,7 @@ func (c *Config) Backup(file string) error {
 	var stderr bytes.Buffer
 	command.Stderr = &stderr
 	if err := command.Run(); err != nil {
-		return fmt.Errorf("Failed to backup database: %s\n%v", stderr.String(), err)
+		return fmt.Errorf("Failed to backup: %s\n%v", stderr.String(), err)
 	}
 	return nil
 }
@@ -87,7 +87,6 @@ func (c *Config) Backup(file string) error {
 func (c *Config) Restore(file string) error {
 	args := []string{}
 	args = append(args, fmt.Sprintf("--uri=%q", c.URI()))
-	args = append(args, "-c"+c.Collection)
 	args = append(args, "--gzip")
 	args = append(args, "--drop")
 	args = append(args, fmt.Sprintf("--archive=%q", file))
@@ -96,7 +95,7 @@ func (c *Config) Restore(file string) error {
 	var stderr bytes.Buffer
 	command.Stderr = &stderr
 	if err := command.Run(); err != nil {
-		return fmt.Errorf("Failed to restore database collection: %s\n%v", stderr.String(), err)
+		return fmt.Errorf("Failed to restore: %s\n%v", stderr.String(), err)
 	}
 	return nil
 }
