@@ -36,7 +36,7 @@ func (c *Config) URI() string {
 		auth = fmt.Sprintf("%s:%s@", c.Username, c.Password)
 	}
 
-	if c.SRV || c.Port == 27017 {
+	if c.SRV || c.Port == 27017 || c.Port == 0 {
 		server = c.Server
 	} else {
 		server = fmt.Sprintf("%s:%d", c.Server, c.Port)
