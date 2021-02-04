@@ -55,9 +55,6 @@ func (c *Config) Open() (*mongo.Client, error) {
 		return nil, err
 	}
 
-	ctx, cancelPing := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancelPing()
-
 	err = client.Ping(ctx, readpref.Primary())
 	if err != nil {
 		return nil, err
