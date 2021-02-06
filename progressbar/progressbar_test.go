@@ -28,7 +28,7 @@ func TestProgessBar(t *testing.T) {
 }
 
 func TestFromReader(t *testing.T) {
-	resp, err := http.Get("https://golang.org/dl/go1.15.6.windows-amd64.msi")
+	resp, err := http.Get("https://github.com/sunshineplan/feh/releases/download/v1.0/feh")
 	if err != nil {
 		t.Fatal(err)
 	}

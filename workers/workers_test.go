@@ -16,7 +16,7 @@ func TestSlice(t *testing.T) {
 		char  string
 		times int
 	}
-	slice := []test{test{"a", 1}, test{"b", 2}, test{"c", 3}}
+	slice := []test{{"a", 1}, {"b", 2}, {"c", 3}}
 	result := make([]string, len(slice))
 	if err := Slice(slice, func(i int, item interface{}) {
 		result[i] = strings.Repeat(item.(test).char, item.(test).times)
