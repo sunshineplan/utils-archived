@@ -19,7 +19,7 @@ var ErrSamePassword = errors.New("New password cannot be the same as old passwor
 var ErrBlankPassword = errors.New("New password cannot be blank")
 
 // Compare compares passwords equivalent.
-// If hashed, p1 must be a bcrypt hashed password.
+// If hashed is true, p1 must be a bcrypt hashed password.
 func Compare(p1, p2 string, hashed bool) (bool, error) {
 	if p1 == p2 && !hashed {
 		return true, nil
@@ -39,7 +39,7 @@ func Compare(p1, p2 string, hashed bool) (bool, error) {
 }
 
 // Change vailds and compares passwords.
-// If hashed, p1 must be a bcrypt hashed password.
+// If hashed is true, p1 must be a bcrypt hashed password.
 // Return a bcrypt hashed password on success.
 func Change(p1, p2, n1, n2 string, hashed bool) (string, error) {
 	ok, err := Compare(p1, p2, hashed)
