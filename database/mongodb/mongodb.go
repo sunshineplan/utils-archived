@@ -67,7 +67,9 @@ func (c *Config) Open() (*mongo.Client, error) {
 func (c *Config) Backup(file string) error {
 	args := []string{}
 	args = append(args, fmt.Sprintf("--uri=%q", c.URI()))
-	args = append(args, "-c"+c.Collection)
+	if c.Collection != "" {
+		args = append(args, "-c"+c.Collection)
+	}
 	args = append(args, "--gzip")
 	args = append(args, fmt.Sprintf("--archive=%q", file))
 
