@@ -63,7 +63,7 @@ func humanizeBytes(n int) string {
 		return fmt.Sprintf("%dB", n)
 	}
 	e := math.Floor(math.Log(float64(n)) / math.Log(1000))
-	suffix := []string{"B", "kB", "MB", "GB", "TB", "PB", "EB"}[int(e)]
+	suffix := []string{"B", "KB", "MB", "GB", "TB", "PB", "EB"}[int(e)]
 	val := math.Floor(float64(n)/math.Pow(1000, e)*10+0.5) / 10
 	format := "%.0f%s"
 	if val < 100 {
