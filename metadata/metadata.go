@@ -3,7 +3,7 @@ package metadata
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 )
 
@@ -44,7 +44,7 @@ func (s *Server) GetWithClient(metadata string, data interface{}, client *http.C
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("No StatusOK response from %s", url)
 	}
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}

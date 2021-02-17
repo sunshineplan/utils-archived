@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -23,7 +22,7 @@ func match(magic string, b []byte) bool {
 
 // Unpack decompresses an archive to File struct.
 func Unpack(r io.Reader) ([]File, error) {
-	b, err := ioutil.ReadAll(r)
+	b, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}

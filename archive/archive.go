@@ -1,6 +1,6 @@
 package archive
 
-import "io/ioutil"
+import "os"
 
 // File struct contains bytes body and the provided name field.
 type File struct {
@@ -23,7 +23,7 @@ func readFiles(files ...string) (fs []File, err error) {
 	for _, f := range files {
 		var file File
 		file.Name = f
-		file.Body, err = ioutil.ReadFile(f)
+		file.Body, err = os.ReadFile(f)
 		if err != nil {
 			return
 		}

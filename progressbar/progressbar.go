@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"os"
 	"strconv"
@@ -101,7 +100,7 @@ func (pb *ProgressBar) SetTemplate(tmplt string) error {
 	if _, err := t.Parse(tmplt); err != nil {
 		return err
 	}
-	if err := t.Execute(ioutil.Discard, format{}); err != nil {
+	if err := t.Execute(io.Discard, format{}); err != nil {
 		return err
 	}
 	pb.template = t
