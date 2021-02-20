@@ -123,74 +123,85 @@ func (pb *ProgressBar) Add(num int) {
 func (pb *ProgressBar) startRefresh() {
 	start := time.Now()
 	maxRefresh := pb.refresh * 3
+
+	ticker := time.NewTicker(pb.refresh)
+	defer ticker.Stop()
+
 	for {
 		now := pb.current
 		if now >= pb.total {
 			return
 		}
-		time.Sleep(pb.refresh)
-		totalSpeed := float64(now) / (float64(time.Since(start)) / float64(time.Second))
-		intervalSpeed := float64(pb.current-now) / (float64(pb.refresh) / float64(time.Second))
-		if intervalSpeed == 0 {
-			pb.speed = totalSpeed
-		} else {
-			pb.speed = intervalSpeed
-		}
-		if intervalSpeed == 0 && pb.refresh < maxRefresh {
-			pb.refresh += time.Second
+
+		select {
+		case <-ticker.C:
+			totalSpeed := float64(now) / (float64(time.Since(start)) / float64(time.Second))
+			intervalSpeed := float64(pb.current-now) / (float64(pb.refresh) / float64(time.Second))
+			if intervalSpeed == 0 {
+				pb.speed = totalSpeed
+			} else {
+				pb.speed = intervalSpeed
+			}
+			if intervalSpeed == 0 && pb.refresh < maxRefresh {
+				pb.refresh += time.Second
+			}
 		}
 	}
 }
 
 func (pb *ProgressBar) startCount() {
-	for {
-		start := time.Now()
-		now := pb.current
-		if now > pb.total {
-			now = pb.total
-		}
-		done := pb.blockWidth * now / pb.total
-		percent := float64(now) * 100 / float64(pb.total)
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
 
-		left := time.Duration(float64(pb.total-now)/pb.speed) * time.Second
-		if left < 0 {
-			left = 0
-		}
-		var progressed string
-		if now < pb.total && done != 0 {
-			progressed = strings.Repeat("=", done-1) + ">"
-		} else {
-			progressed = strings.Repeat("=", done)
-		}
-		var f format
-		if pb.unit == "bytes" {
-			f = format{
-				Done:    progressed,
-				Undone:  strings.Repeat(" ", pb.blockWidth-done),
-				Speed:   humanizeBytes(int(pb.speed)) + "/s",
-				Current: humanizeBytes(now),
-				Percent: fmt.Sprintf("%.2f%%", percent),
-				Total:   humanizeBytes(pb.total),
-				Left:    left,
+	for {
+		select {
+		case <-ticker.C:
+			now := pb.current
+			if now > pb.total {
+				now = pb.total
 			}
-		} else {
-			f = format{
-				Done:    progressed,
-				Undone:  strings.Repeat(" ", pb.blockWidth-done),
-				Speed:   fmt.Sprintf("%.2f/s", pb.speed),
-				Current: strconv.Itoa(now),
-				Percent: fmt.Sprintf("%.2f%%", percent),
-				Total:   strconv.Itoa(pb.total),
-				Left:    left,
+			done := pb.blockWidth * now / pb.total
+			percent := float64(now) * 100 / float64(pb.total)
+
+			left := time.Duration(float64(pb.total-now)/pb.speed) * time.Second
+			if left < 0 {
+				left = 0
+			}
+			var progressed string
+			if now < pb.total && done != 0 {
+				progressed = strings.Repeat("=", done-1) + ">"
+			} else {
+				progressed = strings.Repeat("=", done)
+			}
+			var f format
+			if pb.unit == "bytes" {
+				f = format{
+					Done:    progressed,
+					Undone:  strings.Repeat(" ", pb.blockWidth-done),
+					Speed:   humanizeBytes(int(pb.speed)) + "/s",
+					Current: humanizeBytes(now),
+					Percent: fmt.Sprintf("%.2f%%", percent),
+					Total:   humanizeBytes(pb.total),
+					Left:    left,
+				}
+			} else {
+				f = format{
+					Done:    progressed,
+					Undone:  strings.Repeat(" ", pb.blockWidth-done),
+					Speed:   fmt.Sprintf("%.2f/s", pb.speed),
+					Current: strconv.Itoa(now),
+					Percent: fmt.Sprintf("%.2f%%", percent),
+					Total:   strconv.Itoa(pb.total),
+					Left:    left,
+				}
+			}
+			f.execute(pb)
+			if now == pb.total {
+				io.WriteString(os.Stderr, "\n")
+				pb.Done <- true
+				return
 			}
 		}
-		f.execute(pb)
-		if now == pb.total {
-			io.WriteString(os.Stderr, "\n")
-			pb.Done <- true
-			return
-		}
-		time.Sleep(time.Second - time.Since(start))
 	}
 }
 

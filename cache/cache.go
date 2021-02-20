@@ -85,6 +85,7 @@ func (c *Cache) Empty() {
 
 func (c *Cache) check() {
 	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
 
 	for {
 		select {
