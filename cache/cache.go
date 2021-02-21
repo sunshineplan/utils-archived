@@ -21,12 +21,13 @@ func (i item) Expired() bool {
 
 // Cache is cache struct.
 type Cache struct {
-	cache sync.Map
+	cache     sync.Map
+	autoClean bool
 }
 
 // New creates a new cache with auto clean or not.
 func New(autoClean bool) *Cache {
-	c := &Cache{}
+	c := &Cache{autoClean: autoClean}
 
 	if autoClean {
 		go c.check()
@@ -46,6 +47,9 @@ func (c *Cache) Set(key, value interface{}, d time.Duration, f func() interface{
 }
 
 func (c *Cache) regenerate(key interface{}, i item) {
+	i.Expiration = 0
+	c.cache.Store(key, i)
+
 	i.Value = i.Regenerate()
 	i.Expiration = time.Now().Add(i.Duration).UnixNano()
 	c.cache.Store(key, i)
@@ -59,7 +63,8 @@ func (c *Cache) Get(key interface{}) (interface{}, bool) {
 	}
 
 	i := value.(item)
-	if i.Expired() {
+
+	if i.Expired() && !c.autoClean {
 		if i.Regenerate == nil {
 			c.cache.Delete(key)
 			return nil, false
@@ -93,8 +98,9 @@ func (c *Cache) check() {
 			c.cache.Range(func(key, value interface{}) bool {
 				i := value.(item)
 				if i.Expired() {
-					c.cache.Delete(key)
-					if i.Regenerate != nil {
+					if i.Regenerate == nil {
+						c.cache.Delete(key)
+					} else {
 						defer c.regenerate(key, i)
 					}
 				}

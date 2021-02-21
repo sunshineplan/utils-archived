@@ -52,8 +52,14 @@ func TestEmpty(t *testing.T) {
 func TestAutoCleanRegenerate(t *testing.T) {
 	cache := New(true)
 
+	var newValue = []string{"1", "2", "3"}
+	c := make(chan string, 3)
+	for _, i := range newValue {
+		c <- i
+	}
+
 	cache.Set("regenerate", "old", 2*time.Second, func() interface{} {
-		return "new"
+		return <-c
 	})
 	cache.Set("expire", "value", 2*time.Second, nil)
 
@@ -64,17 +70,19 @@ func TestAutoCleanRegenerate(t *testing.T) {
 		}
 	}
 
-	time.Sleep(3 * time.Second)
+	for _, i := range newValue {
+		time.Sleep(3 * time.Second)
 
-	_, ok := cache.Get("expire")
-	if ok {
-		t.Error("expected not ok; got ok")
-	}
-	value, ok := cache.Get("regenerate")
-	if !ok {
-		t.Fatal("expected ok; got not")
-	}
-	if value != "new" {
-		t.Errorf("expected new; got %q", value)
+		_, ok := cache.Get("expire")
+		if ok {
+			t.Error("expected not ok; got ok")
+		}
+		value, ok := cache.Get("regenerate")
+		if !ok {
+			t.Fatal("expected ok; got not")
+		}
+		if value != i {
+			t.Errorf("expected %q; got %q", i, value)
+		}
 	}
 }
