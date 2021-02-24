@@ -214,13 +214,8 @@ func (pb *ProgressBar) Start() {
 }
 
 // FromReader starts the progress bar from a reader.
-func (pb *ProgressBar) FromReader(r io.Reader, w io.Writer) (written int64, err error) {
-	go func() {
-		go pb.startRefresh()
-		go pb.startCount()
-	}()
-	if written, err = io.Copy(w, io.TeeReader(r, &counter{pb})); err != nil {
-		return
-	}
-	return
+func (pb *ProgressBar) FromReader(r io.Reader, w io.Writer) (int64, error) {
+	pb.Start()
+
+	return io.Copy(w, io.TeeReader(r, &counter{pb}))
 }
