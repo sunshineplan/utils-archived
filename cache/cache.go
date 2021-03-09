@@ -6,16 +6,18 @@ import (
 )
 
 type item struct {
+	sync.RWMutex
 	Value      interface{}
 	Duration   time.Duration
 	Expiration int64
 	Regenerate func() interface{}
 }
 
-func (i item) Expired() bool {
+func (i *item) Expired() bool {
 	if i.Expiration == 0 {
 		return false
 	}
+
 	return time.Now().UnixNano() > i.Expiration
 }
 
@@ -38,7 +40,7 @@ func New(autoClean bool) *Cache {
 
 // Set sets cache value for a key, if f is presented, this value will regenerate when expired.
 func (c *Cache) Set(key, value interface{}, d time.Duration, f func() interface{}) {
-	c.cache.Store(key, item{
+	c.cache.Store(key, &item{
 		Value:      value,
 		Duration:   d,
 		Expiration: time.Now().Add(d).UnixNano(),
@@ -46,13 +48,13 @@ func (c *Cache) Set(key, value interface{}, d time.Duration, f func() interface{
 	})
 }
 
-func (c *Cache) regenerate(key interface{}, i item) {
-	i.Expiration = 0
-	c.cache.Store(key, i)
+func (c *Cache) regenerate(i *item) {
+	i.Lock()
+	defer i.Unlock()
 
+	i.Expiration = 0
 	i.Value = i.Regenerate()
 	i.Expiration = time.Now().Add(i.Duration).UnixNano()
-	c.cache.Store(key, i)
 }
 
 // Get gets cache value by key and whether value was found.
@@ -62,14 +64,14 @@ func (c *Cache) Get(key interface{}) (interface{}, bool) {
 		return nil, false
 	}
 
-	i := value.(item)
+	i := value.(*item)
 
 	if i.Expired() && !c.autoClean {
 		if i.Regenerate == nil {
 			c.cache.Delete(key)
 			return nil, false
 		}
-		defer c.regenerate(key, i)
+		defer c.regenerate(i)
 	}
 
 	return i.Value, true
@@ -96,12 +98,13 @@ func (c *Cache) check() {
 		select {
 		case <-ticker.C:
 			c.cache.Range(func(key, value interface{}) bool {
-				i := value.(item)
+				i := value.(*item)
+
 				if i.Expired() {
 					if i.Regenerate == nil {
 						c.cache.Delete(key)
 					} else {
-						defer c.regenerate(key, i)
+						defer c.regenerate(i)
 					}
 				}
 
