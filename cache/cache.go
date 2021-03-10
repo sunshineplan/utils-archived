@@ -1,16 +1,17 @@
 package cache
 
 import (
+	"log"
 	"sync"
 	"time"
 )
 
 type item struct {
-	sync.RWMutex
+	sync.Mutex
 	Value      interface{}
 	Duration   time.Duration
 	Expiration int64
-	Regenerate func() interface{}
+	Regenerate func() (interface{}, error)
 }
 
 func (i *item) Expired() bool {
@@ -39,7 +40,7 @@ func New(autoClean bool) *Cache {
 }
 
 // Set sets cache value for a key, if f is presented, this value will regenerate when expired.
-func (c *Cache) Set(key, value interface{}, d time.Duration, f func() interface{}) {
+func (c *Cache) Set(key, value interface{}, d time.Duration, f func() (interface{}, error)) {
 	c.cache.Store(key, &item{
 		Value:      value,
 		Duration:   d,
@@ -49,12 +50,23 @@ func (c *Cache) Set(key, value interface{}, d time.Duration, f func() interface{
 }
 
 func (c *Cache) regenerate(i *item) {
-	i.Lock()
-	defer i.Unlock()
-
 	i.Expiration = 0
-	i.Value = i.Regenerate()
-	i.Expiration = time.Now().Add(i.Duration).UnixNano()
+	f := i.Regenerate
+	i.Unlock()
+
+	go func() {
+		value, err := f()
+
+		i.Lock()
+		defer i.Unlock()
+
+		if err != nil {
+			log.Print(err)
+		} else {
+			i.Value = value
+		}
+		i.Expiration = time.Now().Add(i.Duration).UnixNano()
+	}()
 }
 
 // Get gets cache value by key and whether value was found.
@@ -66,15 +78,25 @@ func (c *Cache) Get(key interface{}) (interface{}, bool) {
 
 	i := value.(*item)
 
-	if i.Expired() && !c.autoClean {
-		if i.Regenerate == nil {
+	i.Lock()
+	v := i.Value
+	expired := i.Expired()
+	f := i.Regenerate
+
+	if expired && !c.autoClean {
+		if f == nil {
 			c.cache.Delete(key)
+			i.Unlock()
+
 			return nil, false
 		}
+
 		defer c.regenerate(i)
 	}
 
-	return i.Value, true
+	i.Unlock()
+
+	return v, true
 }
 
 // Delete deletes the value for a key.
@@ -100,13 +122,22 @@ func (c *Cache) check() {
 			c.cache.Range(func(key, value interface{}) bool {
 				i := value.(*item)
 
-				if i.Expired() {
-					if i.Regenerate == nil {
+				i.Lock()
+				expired := i.Expired()
+				f := i.Regenerate
+
+				if expired {
+					if f == nil {
 						c.cache.Delete(key)
+						i.Unlock()
 					} else {
 						defer c.regenerate(i)
 					}
+
+					return true
 				}
+
+				i.Unlock()
 
 				return true
 			})

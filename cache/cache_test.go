@@ -58,8 +58,8 @@ func TestAutoCleanRegenerate(t *testing.T) {
 		c <- i
 	}
 
-	cache.Set("regenerate", "old", 2*time.Second, func() interface{} {
-		return <-c
+	cache.Set("regenerate", "old", 2*time.Second, func() (interface{}, error) {
+		return <-c, nil
 	})
 	cache.Set("expire", "value", 2*time.Second, nil)
 
