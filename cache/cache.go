@@ -92,6 +92,8 @@ func (c *Cache) Get(key interface{}) (interface{}, bool) {
 		}
 
 		defer c.regenerate(i)
+
+		return v, true
 	}
 
 	i.Unlock()
