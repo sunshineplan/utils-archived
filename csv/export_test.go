@@ -9,31 +9,31 @@ import (
 func TestExport(t *testing.T) {
 	type test struct{ A, B interface{} }
 	testcase := []struct {
-		name      string
-		filenames []string
-		slice     interface{}
+		name       string
+		fieldnames []string
+		slice      interface{}
 	}{
 		{
-			name:      "map slice",
-			filenames: []string{"A", "B"},
+			name:       "map slice",
+			fieldnames: []string{"A", "B"},
 			slice: []map[string]interface{}{
 				{"A": "a", "B": "b"},
 				{"A": "aa", "B": nil},
 			},
 		},
 		{
-			name:      "struct slice",
-			filenames: []string{"A", "B"},
-			slice:     []test{{A: "a", B: "b"}, {A: "aa", B: nil}},
+			name:       "struct slice",
+			fieldnames: []string{"A", "B"},
+			slice:      []test{{A: "a", B: "b"}, {A: "aa", B: nil}},
 		},
 		{
-			name:      "struct slice without filenames",
-			filenames: nil,
-			slice:     []test{{A: "a", B: "b"}, {A: "aa", B: nil}},
+			name:       "struct slice without fieldnames",
+			fieldnames: nil,
+			slice:      []test{{A: "a", B: "b"}, {A: "aa", B: nil}},
 		},
 		{
-			name:      "interface slice",
-			filenames: []string{"A", "B"},
+			name:       "interface slice",
+			fieldnames: []string{"A", "B"},
 			slice: []interface{}{
 				test{A: "a", B: "b"},
 				map[string]interface{}{"A": "aa", "B": nil},
@@ -47,12 +47,30 @@ aa,
 
 	for _, tc := range testcase {
 		var b bytes.Buffer
-		if err := Export(tc.filenames, tc.slice, &b); err != nil {
+		if err := Export(tc.fieldnames, tc.slice, &b); err != nil {
 			t.Error(tc.name, err)
 		}
 		if r := b.String(); r != result {
 			t.Errorf("%s expected %q; got %q", tc.name, result, r)
 		}
+	}
+}
+
+func TestExportStruct(t *testing.T) {
+	type test struct {
+		A string
+		B []int
+	}
+	result := `A,B
+a,"[1,2]"
+`
+
+	var b bytes.Buffer
+	if err := Export([]string{"A", "B"}, []test{{A: "a", B: []int{1, 2}}}, &b); err != nil {
+		t.Fatal(err)
+	}
+	if r := b.String(); r != result {
+		t.Errorf("expected %q; got %q", result, r)
 	}
 }
 

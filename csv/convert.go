@@ -1,6 +1,7 @@
 package csv
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -95,7 +96,7 @@ func convertAssign(dest interface{}, src string) error {
 		return nil
 	}
 
-	return fmt.Errorf("unsupported Scan, storing type String into type %T", dest)
+	return json.Unmarshal([]byte(src), dest)
 }
 
 func strconvErr(err error) error {

@@ -56,7 +56,7 @@ func ReadAll(r io.Reader) (*Rows, error) {
 
 	switch len(rs.records) {
 	case 0:
-		return nil, fmt.Errorf("Empty csv file")
+		return nil, fmt.Errorf("empty csv file")
 	case 1:
 		rs.fields = <-rs.records
 		close(rs.records)

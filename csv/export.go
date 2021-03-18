@@ -2,6 +2,7 @@ package csv
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"io"
 	"reflect"
@@ -23,6 +24,7 @@ func export(fieldnames []string, slice interface{}, w io.Writer, utf8 bool) erro
 	if reflect.TypeOf(slice).Kind() != reflect.Slice {
 		return fmt.Errorf("rows is not slice")
 	}
+
 	rows := reflect.ValueOf(slice)
 	if fieldnames == nil {
 		var err error
@@ -52,7 +54,12 @@ func export(fieldnames []string, slice interface{}, w io.Writer, utf8 bool) erro
 			if reflect.TypeOf(row.Interface()).Key().Name() == "string" {
 				for index, fieldname := range fieldnames {
 					if v := row.MapIndex(reflect.ValueOf(fieldname)); v.IsValid() && v.Interface() != nil {
-						r[index] = fmt.Sprintf("%v", v)
+						if vi := v.Interface(); reflect.TypeOf(vi).Kind() == reflect.String {
+							r[index] = vi.(string)
+						} else {
+							b, _ := json.Marshal(vi)
+							r[index] = string(b)
+						}
 					}
 				}
 			} else {
@@ -61,7 +68,12 @@ func export(fieldnames []string, slice interface{}, w io.Writer, utf8 bool) erro
 		case reflect.Struct:
 			for index, fieldname := range fieldnames {
 				if v := row.FieldByName(fieldname); v.IsValid() && v.Interface() != nil {
-					r[index] = fmt.Sprintf("%v", v)
+					if vi := v.Interface(); reflect.TypeOf(vi).Kind() == reflect.String {
+						r[index] = vi.(string)
+					} else {
+						b, _ := json.Marshal(vi)
+						r[index] = string(b)
+					}
 				}
 			}
 		default:
