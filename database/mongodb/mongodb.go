@@ -77,7 +77,7 @@ func (c *Config) Backup(file string) error {
 	var stderr bytes.Buffer
 	command.Stderr = &stderr
 	if err := command.Run(); err != nil {
-		return fmt.Errorf("Failed to backup: %s\n%v", stderr.String(), err)
+		return fmt.Errorf("failed to backup: %s\n%v", stderr.String(), err)
 	}
 	return nil
 }
@@ -94,7 +94,7 @@ func (c *Config) Restore(file string) error {
 	var stderr bytes.Buffer
 	command.Stderr = &stderr
 	if err := command.Run(); err != nil {
-		return fmt.Errorf("Failed to restore: %s\n%v", stderr.String(), err)
+		return fmt.Errorf("failed to restore: %s\n%v", stderr.String(), err)
 	}
 	return nil
 }

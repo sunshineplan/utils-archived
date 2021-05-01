@@ -37,7 +37,7 @@ func (c *Config) Backup(file string) error {
 		cmd = "bash"
 		arg = "-c"
 	default:
-		return fmt.Errorf("Unsupported operating system")
+		return fmt.Errorf("unsupported operating system")
 	}
 
 	var args []string
@@ -49,13 +49,13 @@ func (c *Config) Backup(file string) error {
 	args = append(args, fmt.Sprintf("-r%s", file))
 	args = append(args, "--add-drop-database")
 	args = append(args, "-RB")
-	args = append(args, fmt.Sprintf("%s", c.Database))
+	args = append(args, c.Database)
 
 	command := exec.Command(cmd, arg, strings.Join(args, " "))
 	var stderr bytes.Buffer
 	command.Stderr = &stderr
 	if err := command.Run(); err != nil {
-		return fmt.Errorf("Failed to backup database: %s\n%v", stderr.String(), err)
+		return fmt.Errorf("failed to backup database: %s\n%v", stderr.String(), err)
 	}
 	return nil
 }
@@ -71,12 +71,12 @@ func (c *Config) Restore(file string) error {
 		cmd = "bash"
 		arg = "-c"
 	default:
-		return fmt.Errorf("Unsupported operating system")
+		return fmt.Errorf("unsupported operating system")
 	}
 
 	var args []string
 	args = append(args, "mysql")
-	args = append(args, fmt.Sprintf("%s", c.Database))
+	args = append(args, c.Database)
 	args = append(args, fmt.Sprintf("-h%s", c.Server))
 	args = append(args, fmt.Sprintf("-P%d", c.Port))
 	args = append(args, fmt.Sprintf("-u%s", c.Username))
@@ -88,7 +88,7 @@ func (c *Config) Restore(file string) error {
 	var stderr bytes.Buffer
 	command.Stderr = &stderr
 	if err := command.Run(); err != nil {
-		return fmt.Errorf("Failed to restore database: %s\n%v", stderr.String(), err)
+		return fmt.Errorf("failed to restore database: %s\n%v", stderr.String(), err)
 	}
 	return nil
 }

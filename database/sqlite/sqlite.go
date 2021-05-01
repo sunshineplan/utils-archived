@@ -31,7 +31,7 @@ func (c *Config) Backup(file string) error {
 		cmd = "python"
 	case "linux":
 		cmd = "python3"
-		return fmt.Errorf("Unsupported operating system")
+		return fmt.Errorf("unsupported operating system")
 	}
 
 	var args []string
@@ -44,7 +44,7 @@ func (c *Config) Backup(file string) error {
 	var stderr bytes.Buffer
 	command.Stderr = &stderr
 	if err := command.Run(); err != nil {
-		return fmt.Errorf("Failed to backup database: %s\n%v", stderr.String(), err)
+		return fmt.Errorf("failed to backup database: %s\n%v", stderr.String(), err)
 	}
 	return nil
 }
@@ -58,7 +58,7 @@ func (c *Config) Restore(file string) error {
 	case "linux":
 		cmd = "python3"
 	default:
-		return fmt.Errorf("Unsupported operating system")
+		return fmt.Errorf("unsupported operating system")
 	}
 
 	var args []string
@@ -71,7 +71,7 @@ func (c *Config) Restore(file string) error {
 	var stderr bytes.Buffer
 	command.Stderr = &stderr
 	if err := command.Run(); err != nil {
-		return fmt.Errorf("Failed to restore database: %s\n%v", stderr.String(), err)
+		return fmt.Errorf("failed to restore database: %s\n%v", stderr.String(), err)
 	}
 	return nil
 }

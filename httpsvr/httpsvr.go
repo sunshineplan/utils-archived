@@ -37,21 +37,21 @@ func (s *Server) Run() error {
 	if s.Unix != "" {
 		listener, err := net.Listen("unix", s.Unix)
 		if err != nil {
-			return fmt.Errorf("Failed to listen socket file: %v", err)
+			return fmt.Errorf("failed to listen socket file: %v", err)
 		}
 		// Let everyone can access the socket file.
 		if err := os.Chmod(s.Unix, 0666); err != nil {
-			return fmt.Errorf("Failed to chmod socket file: %v", err)
+			return fmt.Errorf("failed to chmod socket file: %v", err)
 		}
 		if err := server.Serve(listener); err != http.ErrServerClosed {
-			return fmt.Errorf("Failed to server: %v", err)
+			return fmt.Errorf("failed to server: %v", err)
 		}
 	} else {
 		if s.Host != "" && s.Port != "" {
 			server.Addr = s.Host + ":" + s.Port
 		}
 		if err := server.ListenAndServe(); err != http.ErrServerClosed {
-			return fmt.Errorf("Failed to server: %v", err)
+			return fmt.Errorf("failed to server: %v", err)
 		}
 	}
 	<-idleConnsClosed

@@ -19,6 +19,7 @@ const defaultTemplate = `[{{.Done}}{{.Undone}}]   {{.Speed}} - {{.Current -}}
 // ProgressBar is a simple progress bar.
 type ProgressBar struct {
 	sync.Mutex
+	start      time.Time
 	blockWidth int
 	refresh    time.Duration
 	template   *template.Template
@@ -52,7 +53,7 @@ func (f *format) execute(pb *ProgressBar) {
 		io.WriteString(os.Stderr,
 			fmt.Sprintf("\r%s\r%s", strings.Repeat(" ", pb.lastWidth), buf.Bytes()))
 	} else {
-		io.WriteString(os.Stderr, "\r\r"+string(buf.Bytes()))
+		io.WriteString(os.Stderr, "\r\r"+buf.String())
 	}
 	pb.lastWidth = width
 }
@@ -133,18 +134,16 @@ func (pb *ProgressBar) startRefresh() {
 			return
 		}
 
-		select {
-		case <-ticker.C:
-			totalSpeed := float64(now) / (float64(time.Since(start)) / float64(time.Second))
-			intervalSpeed := float64(pb.current-now) / (float64(pb.refresh) / float64(time.Second))
-			if intervalSpeed == 0 {
-				pb.speed = totalSpeed
-			} else {
-				pb.speed = intervalSpeed
-			}
-			if intervalSpeed == 0 && pb.refresh < maxRefresh {
-				pb.refresh += time.Second
-			}
+		<-ticker.C
+		totalSpeed := float64(now) / (float64(time.Since(start)) / float64(time.Second))
+		intervalSpeed := float64(pb.current-now) / (float64(pb.refresh) / float64(time.Second))
+		if intervalSpeed == 0 {
+			pb.speed = totalSpeed
+		} else {
+			pb.speed = intervalSpeed
+		}
+		if intervalSpeed == 0 && pb.refresh < maxRefresh {
+			pb.refresh += time.Second
 		}
 	}
 }
@@ -153,60 +152,58 @@ func (pb *ProgressBar) startCount() {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
-	for {
-		select {
-		case <-ticker.C:
-			now := pb.current
-			if now > pb.total {
-				now = pb.total
-			}
-			done := pb.blockWidth * now / pb.total
-			percent := float64(now) * 100 / float64(pb.total)
+	for range ticker.C {
+		now := pb.current
+		if now > pb.total {
+			now = pb.total
+		}
+		done := pb.blockWidth * now / pb.total
+		percent := float64(now) * 100 / float64(pb.total)
 
-			left := time.Duration(float64(pb.total-now)/pb.speed) * time.Second
-			if left < 0 {
-				left = 0
+		left := time.Duration(float64(pb.total-now)/pb.speed) * time.Second
+		if left < 0 {
+			left = 0
+		}
+		var progressed string
+		if now < pb.total && done != 0 {
+			progressed = strings.Repeat("=", done-1) + ">"
+		} else {
+			progressed = strings.Repeat("=", done)
+		}
+		var f format
+		if pb.unit == "bytes" {
+			f = format{
+				Done:    progressed,
+				Undone:  strings.Repeat(" ", pb.blockWidth-done),
+				Speed:   humanizeBytes(int(pb.speed)) + "/s",
+				Current: humanizeBytes(now),
+				Percent: fmt.Sprintf("%.2f%%", percent),
+				Total:   humanizeBytes(pb.total),
+				Left:    left,
 			}
-			var progressed string
-			if now < pb.total && done != 0 {
-				progressed = strings.Repeat("=", done-1) + ">"
-			} else {
-				progressed = strings.Repeat("=", done)
+		} else {
+			f = format{
+				Done:    progressed,
+				Undone:  strings.Repeat(" ", pb.blockWidth-done),
+				Speed:   fmt.Sprintf("%.2f/s", pb.speed),
+				Current: strconv.Itoa(now),
+				Percent: fmt.Sprintf("%.2f%%", percent),
+				Total:   strconv.Itoa(pb.total),
+				Left:    left,
 			}
-			var f format
-			if pb.unit == "bytes" {
-				f = format{
-					Done:    progressed,
-					Undone:  strings.Repeat(" ", pb.blockWidth-done),
-					Speed:   humanizeBytes(int(pb.speed)) + "/s",
-					Current: humanizeBytes(now),
-					Percent: fmt.Sprintf("%.2f%%", percent),
-					Total:   humanizeBytes(pb.total),
-					Left:    left,
-				}
-			} else {
-				f = format{
-					Done:    progressed,
-					Undone:  strings.Repeat(" ", pb.blockWidth-done),
-					Speed:   fmt.Sprintf("%.2f/s", pb.speed),
-					Current: strconv.Itoa(now),
-					Percent: fmt.Sprintf("%.2f%%", percent),
-					Total:   strconv.Itoa(pb.total),
-					Left:    left,
-				}
-			}
-			f.execute(pb)
-			if now == pb.total {
-				io.WriteString(os.Stderr, "\n")
-				pb.Done <- true
-				return
-			}
+		}
+		f.execute(pb)
+		if now == pb.total {
+			io.WriteString(os.Stderr, fmt.Sprintf("\nDone. Total Time: %s\n", time.Since(pb.start)))
+			pb.Done <- true
+			return
 		}
 	}
 }
 
 // Start starts the progress bar.
 func (pb *ProgressBar) Start() {
+	pb.start = time.Now()
 	go func() {
 		go pb.startRefresh()
 		go pb.startCount()

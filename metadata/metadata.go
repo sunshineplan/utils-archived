@@ -32,17 +32,17 @@ func (s *Server) GetWithClient(metadata string, data interface{}, client *http.C
 	url := s.Addr + "/" + metadata
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to make request to %s: %v", url, err)
+		return fmt.Errorf("failed to make request to %s: %v", url, err)
 	}
 	req.Header.Add(s.Header, s.Value)
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("Failed to do request to %s: %v", url, err)
+		return fmt.Errorf("failed to do request to %s: %v", url, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("No StatusOK response from %s", url)
+		return fmt.Errorf("no StatusOK response from %s", url)
 	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

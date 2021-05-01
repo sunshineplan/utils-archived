@@ -7,16 +7,16 @@ import (
 )
 
 // ErrIncorrectPassword is returned when passwords are not equivalent.
-var ErrIncorrectPassword = errors.New("Incorrect Password")
+var ErrIncorrectPassword = errors.New("incorrect Password")
 
 // ErrConfirmPasswordNotMatch is returned when confirm password doesn't match new password.
-var ErrConfirmPasswordNotMatch = errors.New("Confirm password doesn't match new password")
+var ErrConfirmPasswordNotMatch = errors.New("confirm password doesn't match new password")
 
 // ErrSamePassword is returned when new password is same as old password.
-var ErrSamePassword = errors.New("New password cannot be the same as old password")
+var ErrSamePassword = errors.New("new password cannot be the same as old password")
 
 // ErrBlankPassword is returned when new password is blank.
-var ErrBlankPassword = errors.New("New password cannot be blank")
+var ErrBlankPassword = errors.New("new password cannot be blank")
 
 // Compare compares passwords equivalent.
 // If hashed is true, p1 must be a bcrypt hashed password.

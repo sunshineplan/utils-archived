@@ -32,7 +32,7 @@ func Unpack(r io.Reader) ([]File, error) {
 	case match(tarMagic, b[:len(tarMagic)]):
 		return unpackTar(b)
 	default:
-		return nil, errors.New("Unsupport file format")
+		return nil, errors.New("unsupport file format")
 	}
 }
 
@@ -56,7 +56,7 @@ func UnpackToFiles(r io.Reader, dest string) error {
 					return err
 				}
 			} else if !dir.IsDir() {
-				return fmt.Errorf("Cannot create directory %q: File exists", fpath)
+				return fmt.Errorf("cannot create directory %q: File exists", fpath)
 			}
 		} else {
 			if err := os.MkdirAll(filepath.Dir(fpath), 0755); err != nil {

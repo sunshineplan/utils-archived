@@ -118,31 +118,28 @@ func (c *Cache) check() {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
-	for {
-		select {
-		case <-ticker.C:
-			c.cache.Range(func(key, value interface{}) bool {
-				i := value.(*item)
+	for range ticker.C {
+		c.cache.Range(func(key, value interface{}) bool {
+			i := value.(*item)
 
-				i.Lock()
-				expired := i.Expired()
-				f := i.Regenerate
+			i.Lock()
+			expired := i.Expired()
+			f := i.Regenerate
 
-				if expired {
-					if f == nil {
-						c.cache.Delete(key)
-						i.Unlock()
-					} else {
-						defer c.regenerate(i)
-					}
-
-					return true
+			if expired {
+				if f == nil {
+					c.cache.Delete(key)
+					i.Unlock()
+				} else {
+					defer c.regenerate(i)
 				}
 
-				i.Unlock()
-
 				return true
-			})
-		}
+			}
+
+			i.Unlock()
+
+			return true
+		})
 	}
 }
