@@ -25,6 +25,8 @@ type ProgressBar struct {
 	template   *template.Template
 	current    int
 	total      int
+	status     bool
+	cancel     chan bool
 	Done       chan bool
 	lastWidth  int
 	speed      float64
@@ -79,6 +81,7 @@ func New(total int) *ProgressBar {
 		refresh:    5 * time.Second,
 		template:   template.Must(template.New("ProgressBar").Parse(defaultTemplate)),
 		total:      total,
+		cancel:     make(chan bool, 1),
 		Done:       make(chan bool, 1),
 	}
 }
@@ -130,7 +133,7 @@ func (pb *ProgressBar) startRefresh() {
 
 	for {
 		now := pb.current
-		if now >= pb.total {
+		if now >= pb.total || !pb.status {
 			return
 		}
 
@@ -149,65 +152,88 @@ func (pb *ProgressBar) startRefresh() {
 }
 
 func (pb *ProgressBar) startCount() {
+	defer func() {
+		pb.status = false
+		pb.Done <- true
+	}()
+
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		now := pb.current
-		if now > pb.total {
-			now = pb.total
-		}
-		done := pb.blockWidth * now / pb.total
-		percent := float64(now) * 100 / float64(pb.total)
+	for {
+		select {
+		case <-ticker.C:
+			now := pb.current
+			if now > pb.total {
+				now = pb.total
+			}
+			done := pb.blockWidth * now / pb.total
+			percent := float64(now) * 100 / float64(pb.total)
 
-		left := time.Duration(float64(pb.total-now)/pb.speed) * time.Second
-		if left < 0 {
-			left = 0
-		}
-		var progressed string
-		if now < pb.total && done != 0 {
-			progressed = strings.Repeat("=", done-1) + ">"
-		} else {
-			progressed = strings.Repeat("=", done)
-		}
-		var f format
-		if pb.unit == "bytes" {
-			f = format{
-				Done:    progressed,
-				Undone:  strings.Repeat(" ", pb.blockWidth-done),
-				Speed:   humanizeBytes(int(pb.speed)) + "/s",
-				Current: humanizeBytes(now),
-				Percent: fmt.Sprintf("%.2f%%", percent),
-				Total:   humanizeBytes(pb.total),
-				Left:    left,
+			left := time.Duration(float64(pb.total-now)/pb.speed) * time.Second
+			if left < 0 {
+				left = 0
 			}
-		} else {
-			f = format{
-				Done:    progressed,
-				Undone:  strings.Repeat(" ", pb.blockWidth-done),
-				Speed:   fmt.Sprintf("%.2f/s", pb.speed),
-				Current: strconv.Itoa(now),
-				Percent: fmt.Sprintf("%.2f%%", percent),
-				Total:   strconv.Itoa(pb.total),
-				Left:    left,
+			var progressed string
+			if now < pb.total && done != 0 {
+				progressed = strings.Repeat("=", done-1) + ">"
+			} else {
+				progressed = strings.Repeat("=", done)
 			}
-		}
-		f.execute(pb)
-		if now == pb.total {
-			io.WriteString(os.Stderr, fmt.Sprintf("\nDone. Total Time: %s\n", time.Since(pb.start)))
-			pb.Done <- true
+			var f format
+			if pb.unit == "bytes" {
+				f = format{
+					Done:    progressed,
+					Undone:  strings.Repeat(" ", pb.blockWidth-done),
+					Speed:   humanizeBytes(int(pb.speed)) + "/s",
+					Current: humanizeBytes(now),
+					Percent: fmt.Sprintf("%.2f%%", percent),
+					Total:   humanizeBytes(pb.total),
+					Left:    left,
+				}
+			} else {
+				f = format{
+					Done:    progressed,
+					Undone:  strings.Repeat(" ", pb.blockWidth-done),
+					Speed:   fmt.Sprintf("%.2f/s", pb.speed),
+					Current: strconv.Itoa(now),
+					Percent: fmt.Sprintf("%.2f%%", percent),
+					Total:   strconv.Itoa(pb.total),
+					Left:    left,
+				}
+			}
+			f.execute(pb)
+			if now == pb.total {
+				io.WriteString(os.Stderr, fmt.Sprintf("\nDone. Total Time: %s\n", time.Since(pb.start)))
+				return
+			}
+		case <-pb.cancel:
+			io.WriteString(os.Stderr, fmt.Sprintf("\nCancelled. Total Time: %s\n", time.Since(pb.start)))
 			return
 		}
 	}
 }
 
 // Start starts the progress bar.
-func (pb *ProgressBar) Start() {
+func (pb *ProgressBar) Start() error {
+	if pb.status {
+		return fmt.Errorf("progress bar is already started")
+	}
+
 	pb.start = time.Now()
-	go func() {
-		go pb.startRefresh()
-		go pb.startCount()
-	}()
+	pb.status = true
+
+	go pb.startRefresh()
+	go pb.startCount()
+
+	return nil
+}
+
+// Cancel cancels the progress bar.
+func (pb *ProgressBar) Cancel() {
+	if pb.status {
+		pb.cancel <- true
+	}
 }
 
 // FromReader starts the progress bar from a reader.

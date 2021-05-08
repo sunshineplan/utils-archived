@@ -27,6 +27,22 @@ func TestProgessBar(t *testing.T) {
 	<-pb.Done
 }
 
+func TestCancel(t *testing.T) {
+	pb := New(15).SetRefresh(4 * time.Second)
+	pb.Start()
+	go func() {
+		time.Sleep(3 * time.Second)
+		pb.Cancel()
+	}()
+	go func() {
+		for i := 0; i < pb.total; i++ {
+			pb.Add(1)
+			time.Sleep(time.Second)
+		}
+	}()
+	<-pb.Done
+}
+
 func TestFromReader(t *testing.T) {
 	resp, err := http.Get("https://github.com/sunshineplan/feh/releases/download/v1.0/feh")
 	if err != nil {
