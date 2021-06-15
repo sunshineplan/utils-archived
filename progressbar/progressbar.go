@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -13,30 +12,32 @@ import (
 	"time"
 )
 
-const defaultTemplate = `[{{.Done}}{{.Undone}}]   {{.Speed}} - {{.Current -}}
-({{.Percent}}) of {{.Total}}   {{printf "Left: %s" .Left}} `
+const defaultTemplate = `[{{.Done}}{{.Undone}}]   {{.Speed}}   {{.Current -}}
+({{.Percent}}) of {{.Total}}   {{.Elapsed}}   {{.Left}} `
 
 // ProgressBar is a simple progress bar.
 type ProgressBar struct {
 	sync.Mutex
-	start      time.Time
-	blockWidth int
-	refresh    time.Duration
-	template   *template.Template
-	current    int
-	total      int
-	status     bool
-	cancel     chan bool
-	Done       chan bool
-	lastWidth  int
-	speed      float64
-	unit       string
+	start         time.Time
+	blockWidth    int
+	refresh       time.Duration
+	template      *template.Template
+	current       int64
+	total         int64
+	status        bool
+	refreshStatus bool
+	cancel        chan bool
+	Done          chan bool
+	lastWidth     int
+	speed         float64
+	unit          string
 }
 
 type counter struct{ *ProgressBar }
 
 func (c *counter) Write(b []byte) (int, error) {
-	c.Add(len(b))
+	c.Add(int64(len(b)))
+
 	return 0, nil
 }
 
@@ -44,12 +45,13 @@ type format struct {
 	Done, Undone   string
 	Speed, Percent string
 	Current, Total string
-	Left           time.Duration
+	Elapsed, Left  string
 }
 
 func (f *format) execute(pb *ProgressBar) {
 	var buf bytes.Buffer
 	pb.template.Execute(&buf, f)
+
 	width := buf.Len()
 	if width < pb.lastWidth {
 		io.WriteString(os.Stderr,
@@ -57,25 +59,12 @@ func (f *format) execute(pb *ProgressBar) {
 	} else {
 		io.WriteString(os.Stderr, "\r\r"+buf.String())
 	}
+
 	pb.lastWidth = width
 }
 
-func humanizeBytes(n int) string {
-	if n < 10 {
-		return fmt.Sprintf("%dB", n)
-	}
-	e := math.Floor(math.Log(float64(n)) / math.Log(1000))
-	suffix := []string{"B", "KB", "MB", "GB", "TB", "PB", "EB"}[int(e)]
-	val := math.Floor(float64(n)/math.Pow(1000, e)*10+0.5) / 10
-	format := "%.0f%s"
-	if val < 100 {
-		format = "%.1f%s"
-	}
-	return fmt.Sprintf(format, val, suffix)
-}
-
 // New returns a new ProgressBar with default options.
-func New(total int) *ProgressBar {
+func New(total int64) *ProgressBar {
 	return &ProgressBar{
 		blockWidth: 50,
 		refresh:    5 * time.Second,
@@ -89,38 +78,45 @@ func New(total int) *ProgressBar {
 // SetWidth sets progress bar block width.
 func (pb *ProgressBar) SetWidth(blockWidth int) *ProgressBar {
 	pb.blockWidth = blockWidth
+
 	return pb
 }
 
 // SetRefresh sets progress bar refresh time for check speed.
 func (pb *ProgressBar) SetRefresh(refresh time.Duration) *ProgressBar {
 	pb.refresh = refresh
+
 	return pb
 }
 
 // SetTemplate sets progress bar template.
-func (pb *ProgressBar) SetTemplate(tmplt string) error {
+func (pb *ProgressBar) SetTemplate(tmplt string) (err error) {
 	t := template.New("ProgressBar")
-	if _, err := t.Parse(tmplt); err != nil {
-		return err
+	if _, err = t.Parse(tmplt); err != nil {
+		return
 	}
-	if err := t.Execute(io.Discard, format{}); err != nil {
-		return err
+
+	if err = t.Execute(io.Discard, format{}); err != nil {
+		return
 	}
+
 	pb.template = t
-	return nil
+
+	return
 }
 
 // SetUnit sets progress bar unit.
 func (pb *ProgressBar) SetUnit(unit string) *ProgressBar {
 	pb.unit = unit
+
 	return pb
 }
 
 // Add adds the specified amount to the progress bar.
-func (pb *ProgressBar) Add(num int) {
+func (pb *ProgressBar) Add(num int64) {
 	pb.Lock()
 	defer pb.Unlock()
+
 	pb.current += num
 }
 
@@ -132,12 +128,13 @@ func (pb *ProgressBar) startRefresh() {
 	defer ticker.Stop()
 
 	for {
+		<-ticker.C
+
 		now := pb.current
 		if now >= pb.total || !pb.status {
 			return
 		}
 
-		<-ticker.C
 		totalSpeed := float64(now) / (float64(time.Since(start)) / float64(time.Second))
 		intervalSpeed := float64(pb.current-now) / (float64(pb.refresh) / float64(time.Second))
 		if intervalSpeed == 0 {
@@ -148,6 +145,8 @@ func (pb *ProgressBar) startRefresh() {
 		if intervalSpeed == 0 && pb.refresh < maxRefresh {
 			pb.refresh += time.Second
 		}
+
+		pb.refreshStatus = true
 	}
 }
 
@@ -167,48 +166,77 @@ func (pb *ProgressBar) startCount() {
 			if now > pb.total {
 				now = pb.total
 			}
-			done := pb.blockWidth * now / pb.total
+			done := int(int64(pb.blockWidth) * now / pb.total)
 			percent := float64(now) * 100 / float64(pb.total)
 
-			left := time.Duration(float64(pb.total-now)/pb.speed) * time.Second
-			if left < 0 {
+			var left time.Duration
+			if pb.speed == 0 {
 				left = 0
+			} else {
+				left = time.Duration(float64(pb.total-now)/pb.speed) * time.Second
 			}
+
 			var progressed string
 			if now < pb.total && done != 0 {
 				progressed = strings.Repeat("=", done-1) + ">"
 			} else {
 				progressed = strings.Repeat("=", done)
 			}
+
 			var f format
 			if pb.unit == "bytes" {
 				f = format{
 					Done:    progressed,
 					Undone:  strings.Repeat(" ", pb.blockWidth-done),
-					Speed:   humanizeBytes(int(pb.speed)) + "/s",
-					Current: humanizeBytes(now),
+					Speed:   formatBytes(int64(pb.speed)) + "/s",
+					Current: formatBytes(now),
 					Percent: fmt.Sprintf("%.2f%%", percent),
-					Total:   humanizeBytes(pb.total),
-					Left:    left,
+					Total:   formatBytes(pb.total),
+					Elapsed: fmt.Sprintf("Elapsed: %s", formatDuration(time.Since(pb.start))),
+					Left:    fmt.Sprintf("Left: %s", formatDuration(left)),
 				}
 			} else {
 				f = format{
 					Done:    progressed,
 					Undone:  strings.Repeat(" ", pb.blockWidth-done),
 					Speed:   fmt.Sprintf("%.2f/s", pb.speed),
-					Current: strconv.Itoa(now),
+					Current: strconv.FormatInt(now, 10),
 					Percent: fmt.Sprintf("%.2f%%", percent),
-					Total:   strconv.Itoa(pb.total),
-					Left:    left,
+					Total:   strconv.FormatInt(pb.total, 10),
+					Elapsed: fmt.Sprintf("Elapsed: %s", formatDuration(time.Since(pb.start))),
+					Left:    fmt.Sprintf("Left: %s", formatDuration(left)),
 				}
 			}
+
+			if pb.speed == 0 {
+				f.Left = "Left: ----"
+			}
+
+			if !pb.refreshStatus {
+				f.Speed = "--/s"
+				f.Left = "Left: calculating" + strings.Repeat(".", time.Now().Second()%3+1)
+			}
+
 			f.execute(pb)
+
 			if now == pb.total {
-				io.WriteString(os.Stderr, fmt.Sprintf("\nDone. Total Time: %s\n", time.Since(pb.start)))
+				totalSpeed := float64(pb.total) / (float64(time.Since(pb.start)) / float64(time.Second))
+				if pb.unit == "bytes" {
+					f.Speed = formatBytes(int64(totalSpeed)) + "/s"
+				} else {
+					f.Speed = fmt.Sprintf("%.2f/s", totalSpeed)
+				}
+				f.Left = "Complete"
+
+				f.execute(pb)
+
+				io.WriteString(os.Stderr, "\n")
+
 				return
 			}
 		case <-pb.cancel:
-			io.WriteString(os.Stderr, fmt.Sprintf("\nCancelled. Total Time: %s\n", time.Since(pb.start)))
+			io.WriteString(os.Stderr, "\nCancelled\n")
+
 			return
 		}
 	}
@@ -218,6 +246,10 @@ func (pb *ProgressBar) startCount() {
 func (pb *ProgressBar) Start() error {
 	if pb.status {
 		return fmt.Errorf("progress bar is already started")
+	}
+
+	if pb.total < 0 {
+		return fmt.Errorf("illegal total number: %d", pb.total)
 	}
 
 	pb.start = time.Now()

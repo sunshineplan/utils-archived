@@ -11,7 +11,7 @@ import (
 func TestProgessBar(t *testing.T) {
 	pb := New(15).SetRefresh(4 * time.Second)
 	pb.Start()
-	for i := 0; i < pb.total; i++ {
+	for i := int64(0); i < pb.total; i++ {
 		//log.Print(i)
 		pb.Add(1)
 		time.Sleep(time.Second)
@@ -19,7 +19,7 @@ func TestProgessBar(t *testing.T) {
 	<-pb.Done
 	pb = New(10).SetRefresh(500 * time.Millisecond)
 	pb.Start()
-	for i := 0; i < pb.total; i++ {
+	for i := int64(0); i < pb.total; i++ {
 		//log.Print(i)
 		pb.Add(1)
 		time.Sleep(time.Second)
@@ -35,7 +35,7 @@ func TestCancel(t *testing.T) {
 		pb.Cancel()
 	}()
 	go func() {
-		for i := 0; i < pb.total; i++ {
+		for i := int64(0); i < pb.total; i++ {
 			pb.Add(1)
 			time.Sleep(time.Second)
 		}
@@ -49,7 +49,7 @@ func TestFromReader(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close()
-	total, err := strconv.Atoi(resp.Header.Get("content-length"))
+	total, err := strconv.ParseInt(resp.Header.Get("content-length"), 10, 64)
 	if err != nil {
 		t.Fatal(err)
 	}
