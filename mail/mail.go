@@ -1,12 +1,10 @@
 package mail
 
 import (
-	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"time"
-
-	"github.com/go-mail/mail"
 )
 
 // Dialer is a dialer to an SMTP server.
@@ -18,58 +16,76 @@ type Dialer struct {
 	Timeout  time.Duration
 }
 
-// Message represents an email.
+// Message represents an email message
 type Message struct {
+	From        string
 	To, Cc, Bcc []string
 	Subject     string
 	Body        string
+	ContentType ContentType
 	Attachments []*Attachment
 }
 
-// Attachment represents an attachment.
+// ContentType represents content type
+type ContentType int
+
+const (
+	// TextPlain sets body type to text/plain in message body
+	TextPlain ContentType = iota
+	// TextHTML sets body type to text/html in message body
+	TextHTML
+)
+
+// Attachment represents an email attachment
 type Attachment struct {
 	Filename string
 	Path     string
 	Bytes    []byte
+	Inline   bool
 }
 
 // Send sends the given messages.
 func (d *Dialer) Send(msg ...*Message) error {
 	for _, m := range msg {
-		message := mail.NewMessage()
-		message.SetHeader("From", d.Account)
-		message.SetHeader("To", m.To...)
-		message.SetHeader("Cc", m.Cc...)
-		message.SetHeader("Bcc", m.Bcc...)
-		message.SetHeader("Subject", m.Subject)
-		message.SetBody("text/plain", m.Body)
-		for _, a := range m.Attachments {
-			if a.Bytes != nil {
-				if a.Filename == "" {
-					a.Filename = "attachment"
+		if m.From == "" {
+			m.From = d.Account
+		}
+
+		for _, i := range m.Attachments {
+			if i.Bytes != nil {
+				if i.Filename == "" {
+					i.Filename = "attachment"
 				}
-				message.AttachReader(a.Filename, bytes.NewBuffer(a.Bytes))
-				continue
+			} else {
+				data, err := os.ReadFile(i.Path)
+				if err != nil {
+					return err
+				}
+
+				i.Bytes = data
+				if i.Filename == "" {
+					i.Filename = filepath.Base(i.Path)
+				}
 			}
-			if a.Filename == "" {
-				a.Filename = filepath.Base(a.Path)
-			}
-			f, err := os.Open(a.Path)
+		}
+
+		if d.Timeout == 0 {
+			d.Timeout = 3 * time.Minute
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), d.Timeout)
+		defer cancel()
+
+		c := make(chan error, 1)
+		go func() { c <- d.sendMail(m.From, m.toList(), m.bytes()) }()
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case err := <-c:
 			if err != nil {
 				return err
 			}
-			message.AttachReader(a.Filename, f)
-		}
-
-		dialer := mail.NewDialer(d.Host, d.Port, d.Account, d.Password)
-		if d.Timeout != 0 {
-			dialer.Timeout = d.Timeout
-		} else {
-			dialer.Timeout = 3 * time.Minute
-		}
-
-		if err := dialer.DialAndSend(message); err != nil {
-			return err
 		}
 	}
 
