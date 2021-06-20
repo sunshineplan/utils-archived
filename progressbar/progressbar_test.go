@@ -49,7 +49,7 @@ func TestFromReader(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close()
-	total, err := strconv.ParseInt(resp.Header.Get("content-length"), 10, 64)
+	total, err := strconv.Atoi(resp.Header.Get("content-length"))
 	if err != nil {
 		t.Fatal(err)
 	}

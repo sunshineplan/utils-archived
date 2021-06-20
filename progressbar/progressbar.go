@@ -64,7 +64,12 @@ func (f *format) execute(pb *ProgressBar) {
 }
 
 // New returns a new ProgressBar with default options.
-func New(total int64) *ProgressBar {
+func New(total int) *ProgressBar {
+	return New64(int64(total))
+}
+
+// New64 returns a new ProgressBar with default options.
+func New64(total int64) *ProgressBar {
 	return &ProgressBar{
 		blockWidth: 50,
 		refresh:    5 * time.Second,
