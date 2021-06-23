@@ -27,7 +27,7 @@ type ProgressBar struct {
 	status        bool
 	refreshStatus bool
 	cancel        chan bool
-	Done          chan bool
+	done          chan bool
 	lastWidth     int
 	speed         float64
 	unit          string
@@ -71,12 +71,12 @@ func New(total int) *ProgressBar {
 // New64 returns a new ProgressBar with default options.
 func New64(total int64) *ProgressBar {
 	return &ProgressBar{
-		blockWidth: 50,
+		blockWidth: 40,
 		refresh:    5 * time.Second,
 		template:   template.Must(template.New("ProgressBar").Parse(defaultTemplate)),
 		total:      total,
 		cancel:     make(chan bool, 1),
-		Done:       make(chan bool, 1),
+		done:       make(chan bool, 1),
 	}
 }
 
@@ -157,8 +157,8 @@ func (pb *ProgressBar) startRefresh() {
 
 func (pb *ProgressBar) startCount() {
 	defer func() {
+		pb.done <- true
 		pb.status = false
-		pb.Done <- true
 	}()
 
 	ticker := time.NewTicker(time.Second)
@@ -257,6 +257,10 @@ func (pb *ProgressBar) Start() error {
 		return fmt.Errorf("illegal total number: %d", pb.total)
 	}
 
+	if len(pb.done) == 1 {
+		<-pb.done
+	}
+
 	pb.start = time.Now()
 	pb.status = true
 
@@ -264,6 +268,13 @@ func (pb *ProgressBar) Start() error {
 	go pb.startCount()
 
 	return nil
+}
+
+// Done waits the progress bar finished.
+func (pb *ProgressBar) Done() {
+	if pb.status || len(pb.done) == 1 {
+		<-pb.done
+	}
 }
 
 // Cancel cancels the progress bar.

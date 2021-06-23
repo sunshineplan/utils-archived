@@ -16,7 +16,8 @@ func TestProgessBar(t *testing.T) {
 		pb.Add(1)
 		time.Sleep(time.Second)
 	}
-	<-pb.Done
+	pb.Done()
+
 	pb = New(10).SetRefresh(500 * time.Millisecond)
 	pb.Start()
 	for i := int64(0); i < pb.total; i++ {
@@ -24,7 +25,7 @@ func TestProgessBar(t *testing.T) {
 		pb.Add(1)
 		time.Sleep(time.Second)
 	}
-	<-pb.Done
+	pb.Done()
 }
 
 func TestCancel(t *testing.T) {
@@ -40,7 +41,7 @@ func TestCancel(t *testing.T) {
 			time.Sleep(time.Second)
 		}
 	}()
-	<-pb.Done
+	pb.Done()
 }
 
 func TestFromReader(t *testing.T) {
@@ -57,7 +58,7 @@ func TestFromReader(t *testing.T) {
 	if _, err := pb.FromReader(resp.Body, io.Discard); err != nil {
 		t.Fatal(err)
 	}
-	<-pb.Done
+	pb.Done()
 }
 
 func TestSetTemplate(t *testing.T) {
