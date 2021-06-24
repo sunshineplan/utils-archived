@@ -27,6 +27,10 @@ func export(fieldnames []string, slice interface{}, w io.Writer, utf8 bool) erro
 
 	rows := reflect.ValueOf(slice)
 	if fieldnames == nil {
+		if rows.Len() == 0 {
+			return fmt.Errorf("can't get struct fieldnames from zero length slice")
+		}
+
 		var err error
 		fieldnames, err = getStructFieldNames(rows.Index(0).Interface())
 		if err != nil {
