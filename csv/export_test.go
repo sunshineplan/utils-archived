@@ -90,16 +90,3 @@ a,b
 		t.Errorf("expected %q; got %q", result, r)
 	}
 }
-
-func TestGetStructFieldNames(t *testing.T) {
-	if _, err := getStructFieldNames(map[string]string{"test": "test"}); err == nil {
-		t.Error("gave nil error; want error")
-	}
-	if fieldnames, err := getStructFieldNames(struct{ A, B string }{}); err != nil {
-		t.Error(err)
-	} else {
-		if !reflect.DeepEqual([]string{"A", "B"}, fieldnames) {
-			t.Errorf("expected %q; got %q", []string{"A", "B"}, fieldnames)
-		}
-	}
-}

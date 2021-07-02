@@ -1,14 +1,10 @@
 package csv
 
 import (
-	"encoding/csv"
-	"encoding/json"
 	"fmt"
 	"io"
 	"reflect"
 )
-
-var utf8bom = []byte{0xEF, 0xBB, 0xBF}
 
 // Export writes slice as csv format with fieldnames to writer w.
 func Export(fieldnames []string, slice interface{}, w io.Writer) error {
@@ -20,10 +16,12 @@ func ExportUTF8(fieldnames []string, slice interface{}, w io.Writer) error {
 	return export(fieldnames, slice, w, true)
 }
 
-func export(fieldnames []string, slice interface{}, w io.Writer, utf8 bool) error {
+func export(fieldnames []string, slice interface{}, w io.Writer, utf8bom bool) (err error) {
 	if reflect.TypeOf(slice).Kind() != reflect.Slice {
 		return fmt.Errorf("rows is not slice")
 	}
+
+	csvWriter := NewWriter(w, utf8bom)
 
 	rows := reflect.ValueOf(slice)
 	if fieldnames == nil {
@@ -31,78 +29,13 @@ func export(fieldnames []string, slice interface{}, w io.Writer, utf8 bool) erro
 			return fmt.Errorf("can't get struct fieldnames from zero length slice")
 		}
 
-		var err error
-		fieldnames, err = getStructFieldNames(rows.Index(0).Interface())
-		if err != nil {
-			return err
-		}
+		err = csvWriter.WriteFields(rows.Index(0).Interface())
+	} else {
+		err = csvWriter.WriteFields(fieldnames)
+	}
+	if err != nil {
+		return
 	}
 
-	if utf8 {
-		w.Write(utf8bom)
-	}
-
-	writer := csv.NewWriter(w)
-	if err := writer.Write(fieldnames); err != nil {
-		return err
-	}
-
-	for i := 0; i < rows.Len(); i++ {
-		row := rows.Index(i)
-		if row.Kind() == reflect.Interface {
-			row = row.Elem()
-		}
-		r := make([]string, len(fieldnames))
-		switch row.Kind() {
-		case reflect.Map:
-			if reflect.TypeOf(row.Interface()).Key().Name() == "string" {
-				for index, fieldname := range fieldnames {
-					if v := row.MapIndex(reflect.ValueOf(fieldname)); v.IsValid() && v.Interface() != nil {
-						if vi := v.Interface(); reflect.TypeOf(vi).Kind() == reflect.String {
-							r[index] = vi.(string)
-						} else {
-							b, _ := json.Marshal(vi)
-							r[index] = string(b)
-						}
-					}
-				}
-			} else {
-				return fmt.Errorf("can not export rows which map is not string")
-			}
-		case reflect.Struct:
-			for index, fieldname := range fieldnames {
-				if v := row.FieldByName(fieldname); v.IsValid() && v.Interface() != nil {
-					if vi := v.Interface(); reflect.TypeOf(vi).Kind() == reflect.String {
-						r[index] = vi.(string)
-					} else {
-						b, _ := json.Marshal(vi)
-						r[index] = string(b)
-					}
-				}
-			}
-		default:
-			return fmt.Errorf("not support rows format: %s", row.Kind())
-		}
-		if err := writer.Write(r); err != nil {
-			return err
-		}
-	}
-
-	writer.Flush()
-	if err := writer.Error(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func getStructFieldNames(i interface{}) ([]string, error) {
-	if reflect.TypeOf(i).Kind() != reflect.Struct {
-		return nil, fmt.Errorf("can not get fieldnames from interface which is not struct")
-	}
-	v := reflect.ValueOf(i)
-	var fieldnames []string
-	for i := 0; i < v.NumField(); i++ {
-		fieldnames = append(fieldnames, v.Type().Field(i).Name)
-	}
-	return fieldnames, nil
+	return csvWriter.WriteAll(slice)
 }
