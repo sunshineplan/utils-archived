@@ -18,7 +18,7 @@ func Export(content []string, w io.Writer) error {
 
 // ExportFile writes content to file.
 func ExportFile(content []string, file string) error {
-	f, err := os.Open(file)
+	f, err := os.Create(file)
 	if err != nil {
 		return err
 	}
