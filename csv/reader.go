@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"os"
 )
 
 // Rows is the records of a csv file. Its cursor starts before
@@ -33,7 +34,7 @@ func lineCounter(r io.Reader) (count int, err error) {
 	}
 }
 
-// ReadAll reads all the remaining records from r.
+// ReadAll reads all the records from r.
 func ReadAll(r io.Reader) (*Rows, error) {
 	var buf bytes.Buffer
 	count, err := lineCounter(io.TeeReader(r, &buf))
@@ -66,6 +67,16 @@ func ReadAll(r io.Reader) (*Rows, error) {
 	}
 
 	return rs, nil
+}
+
+// ReadFile reads all records from file.
+func ReadFile(file string) (*Rows, error) {
+	f, err := os.Open(file)
+	if err != nil {
+		return nil, err
+	}
+
+	return ReadAll(f)
 }
 
 // Fields returns the fieldnames.
