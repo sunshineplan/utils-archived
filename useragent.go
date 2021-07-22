@@ -9,7 +9,7 @@ import (
 const uaAPI = "https://raw.githubusercontent.com/sunshineplan/useragent/main/user-agent"
 const uaCDNAPI = "https://cdn.jsdelivr.net/gh/sunshineplan/useragent/user-agent"
 
-// UserAgentString gets latest chrome user agent string
+// UserAgentString gets latest chrome user agent string.
 func UserAgentString() (string, error) {
 	result, err := LoadBalancer(
 		[]interface{}{uaAPI, uaCDNAPI},
@@ -40,4 +40,15 @@ func UserAgentString() (string, error) {
 	}
 
 	return string(b), nil
+}
+
+// UserAgent gets latest chrome user agent string, if failed to get string or
+// string is empty, the default string will be used.
+func UserAgent(defaultUserAgentString string) string {
+	ua, err := UserAgentString()
+	if err != nil || ua == "" {
+		ua = defaultUserAgentString
+	}
+
+	return ua
 }
